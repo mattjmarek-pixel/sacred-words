@@ -1,0 +1,136 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: prayers
+    description: Prayer operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /prayers/generate:
+    post:
+      operationId: generatePrayer
+      tags: [prayers]
+      summary: Generate a prayer using AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GeneratePrayerRequest"
+      responses:
+        "200":
+          description: Generated prayer text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedPrayer"
+
+  /prayers/browse:
+    get:
+      operationId: getBrowsePrayers
+      tags: [prayers]
+      summary: Get community prayers
+      parameters:
+        - name: tradition
+          in: query
+          required: false
+          schema:
+            type: string
+            default: All
+      responses:
+        "200":
+          description: List of community prayers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityPrayerList"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    GeneratePrayerRequest:
+      type: object
+      properties:
+        tradition:
+          type: string
+        intentions:
+          type: array
+          items:
+            type: string
+        tone:
+          type: string
+        context:
+          type: string
+      required:
+        - tradition
+        - intentions
+        - tone
+
+    GeneratedPrayer:
+      type: object
+      properties:
+        prayer:
+          type: string
+      required:
+        - prayer
+
+    CommunityPrayer:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        tradition:
+          type: string
+        intention:
+          type: string
+        text:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - title
+        - tradition
+        - intention
+        - text
+        - createdAt
+
+    CommunityPrayerList:
+      type: object
+      properties:
+        prayers:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommunityPrayer"
+      required:
+        - prayers
