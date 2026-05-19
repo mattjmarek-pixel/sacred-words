@@ -46,6 +46,17 @@ export interface CommunityPrayerList {
   prayers: CommunityPrayer[];
 }
 
+export interface SubmitCommunityPrayerRequest {
+  /** @minLength 1 */
+  title: string;
+  /** @minLength 1 */
+  tradition: string;
+  /** @minLength 1 */
+  intention: string;
+  /** @minLength 1 */
+  text: string;
+}
+
 export interface AuthUser {
   id: string;
   /** @nullable */

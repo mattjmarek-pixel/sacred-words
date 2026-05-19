@@ -95,6 +95,7 @@ router.get("/login", async (req: Request, res: Response) => {
   const callbackUrl = `${getOrigin(req)}/api/callback`;
 
   const returnTo = getSafeReturnTo(req.query.returnTo);
+  const isPopup = req.query.mode === "popup";
 
   const state = oidc.randomState();
   const nonce = oidc.randomNonce();
@@ -115,6 +116,9 @@ router.get("/login", async (req: Request, res: Response) => {
   setOidcCookie(res, "nonce", nonce);
   setOidcCookie(res, "state", state);
   setOidcCookie(res, "return_to", returnTo);
+  if (isPopup) {
+    setOidcCookie(res, "popup_mode", "1");
+  }
 
   res.redirect(redirectTo.href);
 });
@@ -184,6 +188,31 @@ router.get("/callback", async (req: Request, res: Response) => {
 
   const sid = await createSession(sessionData);
   setSessionCookie(res, sid);
+
+  const isPopup = req.cookies?.popup_mode === "1";
+  res.clearCookie("popup_mode", { path: "/" });
+
+  if (isPopup) {
+    res.setHeader("Content-Type", "text/html");
+    res.send(`<!DOCTYPE html>
+<html>
+<head><title>Signing in…</title></head>
+<body>
+<script>
+try {
+  if (window.opener) {
+    window.opener.postMessage({ type: "auth-complete", token: ${JSON.stringify(sid)} }, "*");
+  }
+} finally {
+  window.close();
+}
+</script>
+<p>Signing in… this window should close automatically.</p>
+</body>
+</html>`);
+    return;
+  }
+
   res.redirect(returnTo);
 });
 

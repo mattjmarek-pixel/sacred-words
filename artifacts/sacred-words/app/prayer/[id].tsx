@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/useToast";
 import { getPrayerById, deletePrayer } from "@/hooks/useDatabase";
 import type { SavedPrayer } from "@/hooks/useDatabase";
 import { ShareOptionsModal } from "@/components/ShareOptionsModal";
+import { ShareToCommunityModal } from "@/components/ShareToCommunityModal";
 import PrayerShareCard from "@/components/PrayerShareCard";
 import { useShareAsImage } from "@/hooks/useShareAsImage";
 
@@ -44,6 +45,7 @@ export default function PrayerDetailScreen() {
   const { toast, showToast } = useToast();
   const [prayer, setPrayer] = useState<SavedPrayer | null>(null);
   const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [communityModalVisible, setCommunityModalVisible] = useState(false);
 
   const { cardRef, isCapturing, shareAsImage, saveToLibrary } = useShareAsImage();
 
@@ -149,6 +151,19 @@ export default function PrayerDetailScreen() {
         isCapturing={isCapturing}
       />
 
+      <ShareToCommunityModal
+        visible={communityModalVisible}
+        onClose={() => setCommunityModalVisible(false)}
+        onSuccess={() => {
+          setCommunityModalVisible(false);
+          showToast("Your prayer is now in the community collection");
+        }}
+        initialTitle={prayer.title}
+        initialTradition={prayer.tradition}
+        initialIntention={prayer.intention}
+        prayerText={prayer.text}
+      />
+
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: colors.border }]}>
         <Pressable
@@ -217,6 +232,16 @@ export default function PrayerDetailScreen() {
         >
           <Feather name="share-2" size={18} color="#fff" />
           <Text style={[styles.actionBtnText, { fontFamily: "Lato_700Bold" }]}>Share</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => setCommunityModalVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Share prayer to community"
+          style={[styles.actionBtn, { backgroundColor: colors.parchment, borderColor: colors.gold, borderWidth: 1.5 }]}
+        >
+          <Feather name="users" size={18} color={colors.gold} />
+          <Text style={[styles.actionBtnText, { color: colors.gold, fontFamily: "Lato_700Bold" }]}>Community</Text>
         </Pressable>
 
         <Pressable

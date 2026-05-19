@@ -25,6 +25,7 @@ import { useAuth } from "@/lib/auth";
 import { useSubscription } from "@/lib/revenuecat";
 import { PaywallScreen } from "@/components/PaywallScreen";
 import { ShareOptionsModal } from "@/components/ShareOptionsModal";
+import { ShareToCommunityModal } from "@/components/ShareToCommunityModal";
 import PrayerShareCard from "@/components/PrayerShareCard";
 import { useShareAsImage } from "@/hooks/useShareAsImage";
 
@@ -80,6 +81,7 @@ export default function BuildScreen() {
   const [generatedPrayer, setGeneratedPrayer] = useState("");
   const [prayerTitle, setPrayerTitle] = useState("");
   const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [communityModalVisible, setCommunityModalVisible] = useState(false);
 
   const prayerOpacity = useRef(new Animated.Value(0)).current;
   const prayerTranslate = useRef(new Animated.Value(40)).current;
@@ -269,6 +271,19 @@ export default function BuildScreen() {
         onSaveToLibrary={handleSaveToLibrary}
         onShareAsText={handleShareText}
         isCapturing={isCapturing}
+      />
+
+      <ShareToCommunityModal
+        visible={communityModalVisible}
+        onClose={() => setCommunityModalVisible(false)}
+        onSuccess={() => {
+          setCommunityModalVisible(false);
+          showToast("Your prayer is now in the community collection");
+        }}
+        initialTitle={resolvedTitle}
+        initialTradition={tradition}
+        initialIntention={intentions[0] ?? "Reflection"}
+        prayerText={generatedPrayer}
       />
 
       <KeyboardAwareScrollView
@@ -476,6 +491,17 @@ export default function BuildScreen() {
               >
                 <Text style={[styles.actionBtnText, { color: "#fff", fontFamily: "Lato_700Bold" }]}>
                   Share
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setCommunityModalVisible(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Share prayer to community"
+                style={[styles.actionBtn, styles.actionBtnOutline, { borderColor: colors.gold }]}
+              >
+                <Text style={[styles.actionBtnText, { color: colors.gold, fontFamily: "Lato_700Bold" }]}>
+                  Share to Community
                 </Text>
               </Pressable>
 

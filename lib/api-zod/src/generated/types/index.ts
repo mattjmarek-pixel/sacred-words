@@ -23,3 +23,4 @@ export * from "./logoutSuccess";
 export * from "./mobileTokenExchangeRequest";
 export * from "./mobileTokenExchangeSuccess";
 export * from "./prayerUsage";
+export * from "./submitCommunityPrayerRequest";

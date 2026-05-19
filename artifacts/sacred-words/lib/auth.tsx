@@ -7,6 +7,29 @@ import * as SecureStore from "expo-secure-store";
 WebBrowser.maybeCompleteAuthSession();
 
 const AUTH_TOKEN_KEY = "auth_session_token";
+
+const tokenStore = {
+  async get(key: string): Promise<string | null> {
+    if (Platform.OS === "web") {
+      return localStorage.getItem(key);
+    }
+    return SecureStore.getItemAsync(key);
+  },
+  async set(key: string, value: string): Promise<void> {
+    if (Platform.OS === "web") {
+      localStorage.setItem(key, value);
+      return;
+    }
+    await SecureStore.setItemAsync(key, value);
+  },
+  async remove(key: string): Promise<void> {
+    if (Platform.OS === "web") {
+      localStorage.removeItem(key);
+      return;
+    }
+    await SecureStore.deleteItemAsync(key);
+  },
+};
 const ISSUER_URL = process.env.EXPO_PUBLIC_ISSUER_URL ?? "https://replit.com/oidc";
 
 interface User {
@@ -48,28 +71,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const isWeb = Platform.OS === "web";
+
   const discovery = AuthSession.useAutoDiscovery(ISSUER_URL);
 
-  const redirectUri =
-    Platform.OS === "web" && process.env.EXPO_PUBLIC_DOMAIN
-      ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-      : AuthSession.makeRedirectUri({ scheme: "sacredwords" });
+  const redirectUri = AuthSession.makeRedirectUri(
+    isWeb ? {} : { scheme: "sacredwords" },
+  );
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
       clientId: getClientId(),
       scopes: ["openid", "email", "profile", "offline_access"],
-      redirectUri,
+      redirectUri: isWeb ? "" : redirectUri,
       prompt: AuthSession.Prompt.Login,
     },
-    discovery,
+    isWeb ? null : discovery,
   );
 
   const exchangedCode = useRef<string | null>(null);
 
   const fetchUser = useCallback(async () => {
     try {
-      const token = await SecureStore.getItemAsync(AUTH_TOKEN_KEY);
+      const token = await tokenStore.get(AUTH_TOKEN_KEY);
       if (!token) {
         setUser(null);
         setIsLoading(false);
@@ -85,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.user) {
         setUser(data.user);
       } else {
-        await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
+        await tokenStore.remove(AUTH_TOKEN_KEY);
         setUser(null);
       }
     } catch {
@@ -100,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchUser]);
 
   useEffect(() => {
+    if (isWeb) return;
     if (response?.type !== "success" || !request?.codeVerifier) return;
 
     const { code, state } = response.params;
@@ -134,7 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const data = await exchangeRes.json();
         if (data.token) {
-          await SecureStore.setItemAsync(AUTH_TOKEN_KEY, data.token);
+          await tokenStore.set(AUTH_TOKEN_KEY, data.token);
           setIsLoading(true);
           await fetchUser();
         }
@@ -143,19 +168,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
       }
     })();
-  }, [response, request, redirectUri, fetchUser]);
+  }, [isWeb, response, request, redirectUri, fetchUser]);
 
   const login = useCallback(async () => {
+    if (isWeb) {
+      const apiBase = getApiBaseUrl();
+      if (!apiBase) {
+        console.error("[auth] EXPO_PUBLIC_DOMAIN is not set — web login will not work.");
+        return;
+      }
+
+      return new Promise<void>((resolve) => {
+        const loginUrl = `${apiBase}/api/login?mode=popup`;
+        const popup = window.open(loginUrl, "sacred-words-login", "width=520,height=640");
+
+        if (!popup) {
+          console.error("[auth] Popup was blocked — ask the user to allow popups for this site.");
+          resolve();
+          return;
+        }
+
+        const trustedOrigin = new URL(apiBase).origin;
+
+        function handleMessage(event: MessageEvent) {
+          if (event.origin !== trustedOrigin) return;
+          if (event.source !== popup) return;
+          if (
+            !event.data ||
+            event.data.type !== "auth-complete" ||
+            typeof event.data.token !== "string"
+          ) {
+            return;
+          }
+          cleanup();
+          tokenStore.set(AUTH_TOKEN_KEY, event.data.token).then(() => {
+            setIsLoading(true);
+            fetchUser().then(resolve);
+          });
+        }
+
+        function cleanup() {
+          window.removeEventListener("message", handleMessage);
+          clearInterval(closedPoll);
+        }
+
+        const closedPoll = setInterval(() => {
+          if (popup.closed) {
+            cleanup();
+            resolve();
+          }
+        }, 500);
+
+        window.addEventListener("message", handleMessage);
+      });
+    }
+
     try {
       await promptAsync();
     } catch (err) {
       console.error("Login error:", err);
     }
-  }, [promptAsync]);
+  }, [isWeb, promptAsync, fetchUser]);
 
   const logout = useCallback(async () => {
     try {
-      const token = await SecureStore.getItemAsync(AUTH_TOKEN_KEY);
+      const token = await tokenStore.get(AUTH_TOKEN_KEY);
       if (token) {
         const apiBase = getApiBaseUrl();
         await fetch(`${apiBase}/api/mobile-auth/logout`, {
@@ -165,7 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch {
     } finally {
-      await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
+      await tokenStore.remove(AUTH_TOKEN_KEY);
       setUser(null);
     }
   }, []);

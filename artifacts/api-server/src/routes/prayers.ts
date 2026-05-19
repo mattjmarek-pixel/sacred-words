@@ -413,4 +413,47 @@ router.get("/prayers/browse", async (req: Request, res: Response) => {
   }
 });
 
+router.post("/prayers/browse", async (req: Request, res: Response) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Sign in to submit prayers" });
+    return;
+  }
+
+  const { title, tradition, intention, text } = req.body as {
+    title?: string;
+    tradition?: string;
+    intention?: string;
+    text?: string;
+  };
+
+  if (!title?.trim() || !tradition?.trim() || !intention?.trim() || !text?.trim()) {
+    res.status(400).json({ error: "All fields (title, tradition, intention, text) are required" });
+    return;
+  }
+
+  try {
+    const [inserted] = await db
+      .insert(communityPrayersTable)
+      .values({
+        title: title.trim(),
+        tradition: tradition.trim(),
+        intention: intention.trim(),
+        text: text.trim(),
+      })
+      .returning();
+
+    res.status(201).json({
+      id: inserted.id,
+      title: inserted.title,
+      tradition: inserted.tradition,
+      intention: inserted.intention,
+      text: inserted.text,
+      createdAt: inserted.createdAt.toISOString(),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to submit community prayer");
+    res.status(500).json({ error: "Could not submit prayer" });
+  }
+});
+
 export default router;

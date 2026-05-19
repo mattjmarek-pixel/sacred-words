@@ -19,6 +19,7 @@ import type {
 import type {
   AuthUserEnvelope,
   BeginBrowserLoginParams,
+  CommunityPrayer,
   CommunityPrayerList,
   ErrorEnvelope,
   FreeTierLimitReached,
@@ -31,6 +32,7 @@ import type {
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
   PrayerUsage,
+  SubmitCommunityPrayerRequest,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -300,6 +302,93 @@ export function useGetBrowsePrayers<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Submit a prayer to the community collection
+ */
+export const getSubmitCommunityPrayerUrl = () => {
+  return `/api/prayers/browse`;
+};
+
+export const submitCommunityPrayer = async (
+  submitCommunityPrayerRequest: SubmitCommunityPrayerRequest,
+  options?: RequestInit,
+): Promise<CommunityPrayer> => {
+  return customFetch<CommunityPrayer>(getSubmitCommunityPrayerUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(submitCommunityPrayerRequest),
+  });
+};
+
+export const getSubmitCommunityPrayerMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitCommunityPrayer>>,
+    TError,
+    { data: BodyType<SubmitCommunityPrayerRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitCommunityPrayer>>,
+  TError,
+  { data: BodyType<SubmitCommunityPrayerRequest> },
+  TContext
+> => {
+  const mutationKey = ["submitCommunityPrayer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitCommunityPrayer>>,
+    { data: BodyType<SubmitCommunityPrayerRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return submitCommunityPrayer(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitCommunityPrayerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitCommunityPrayer>>
+>;
+export type SubmitCommunityPrayerMutationBody =
+  BodyType<SubmitCommunityPrayerRequest>;
+export type SubmitCommunityPrayerMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Submit a prayer to the community collection
+ */
+export const useSubmitCommunityPrayer = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitCommunityPrayer>>,
+    TError,
+    { data: BodyType<SubmitCommunityPrayerRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitCommunityPrayer>>,
+  TError,
+  { data: BodyType<SubmitCommunityPrayerRequest> },
+  TContext
+> => {
+  return useMutation(getSubmitCommunityPrayerMutationOptions(options));
+};
 
 /**
  * @summary Get the current user's prayer generation usage for this month

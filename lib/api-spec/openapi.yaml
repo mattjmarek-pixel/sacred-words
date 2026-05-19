@@ -73,6 +73,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CommunityPrayerList"
+    post:
+      operationId: submitCommunityPrayer
+      tags: [prayers]
+      summary: Submit a prayer to the community collection
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitCommunityPrayerRequest"
+      responses:
+        "201":
+          description: Prayer submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityPrayer"
+        "400":
+          description: Missing or invalid fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
 
   /prayers/usage:
     get:
@@ -332,6 +363,27 @@ components:
             $ref: "#/components/schemas/CommunityPrayer"
       required:
         - prayers
+
+    SubmitCommunityPrayerRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        tradition:
+          type: string
+          minLength: 1
+        intention:
+          type: string
+          minLength: 1
+        text:
+          type: string
+          minLength: 1
+      required:
+        - title
+        - tradition
+        - intention
+        - text
 
     AuthUser:
       type: object

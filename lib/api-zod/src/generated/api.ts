@@ -52,6 +52,23 @@ export const GetBrowsePrayersResponse = zod.object({
 });
 
 /**
+ * @summary Submit a prayer to the community collection
+ */
+export const SubmitCommunityPrayerHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const SubmitCommunityPrayerBody = zod.object({
+  title: zod.string().min(1),
+  tradition: zod.string().min(1),
+  intention: zod.string().min(1),
+  text: zod.string().min(1),
+});
+
+/**
  * @summary Get the current user's prayer generation usage for this month
  */
 export const GetPrayerUsageHeader = zod.object({
