@@ -1,11 +1,9 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,22 +12,66 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
 import { ChipSelector } from "@/components/ChipSelector";
 import { Toast } from "@/components/Toast";
 import { useToast } from "@/hooks/useToast";
 import { savePrayer } from "@/hooks/useDatabase";
-import { useGeneratePrayer } from "@workspace/api-client-react";
+import { useGeneratePrayer, useGetPrayerUsage, getGetPrayerUsageQueryKey } from "@workspace/api-client-react";
 import { Share } from "react-native";
+import { useAuth } from "@/lib/auth";
+import { useSubscription } from "@/lib/revenuecat";
+import { PaywallScreen } from "@/components/PaywallScreen";
+import { ShareOptionsModal } from "@/components/ShareOptionsModal";
+import PrayerShareCard from "@/components/PrayerShareCard";
+import { useShareAsImage } from "@/hooks/useShareAsImage";
 
-const TRADITIONS = ["Universal", "Christian", "Jewish", "Islamic", "Buddhist", "Hindu", "Indigenous", "Secular"];
+const TRADITIONS = ["Universal", "Christian", "Catholic", "Jewish", "Islamic", "Buddhist", "Hindu", "Indigenous", "Secular"];
 const INTENTIONS = ["Gratitude", "Healing", "Guidance", "Strength", "Grief", "Protection", "Peace", "Celebration", "Hope", "Forgiveness"];
 const TONES = ["Contemplative", "Joyful", "Sorrowful", "Urgent", "Gentle", "Bold", "Quiet"];
+
+const FREE_LIMIT = 3;
+
+function getMonthKey(): string {
+  const now = new Date();
+  return `prayer_gen_${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}
 
 export default function BuildScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { toast, showToast } = useToast();
+  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
+  const { isPremium } = useSubscription();
+  const queryClient = useQueryClient();
+
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [paywallVisible, setPaywallVisible] = useState(false);
+  const [localCount, setLocalCount] = useState(0);
+
+  const usageQuery = useGetPrayerUsage({
+    query: { queryKey: getGetPrayerUsageQueryKey(), enabled: isAuthenticated, staleTime: 60 * 1000 },
+  });
+
+  const serverCount = usageQuery.data?.count ?? 0;
+  const serverIsPremium = usageQuery.data?.isPremium ?? false;
+  const effectivePremium = isPremium || serverIsPremium;
+  // Server is authoritative when authenticated; local count is a pre-load fallback only.
+  const genCount = isAuthenticated ? serverCount : localCount;
+
+  useEffect(() => {
+    AsyncStorage.getItem(getMonthKey()).then((val) => {
+      setLocalCount(val ? parseInt(val, 10) : 0);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (serverCount > localCount) {
+      setLocalCount(serverCount);
+    }
+  }, [serverCount]);
 
   const [tradition, setTradition] = useState("Universal");
   const [intentions, setIntentions] = useState<string[]>([]);
@@ -37,12 +79,16 @@ export default function BuildScreen() {
   const [context, setContext] = useState("");
   const [generatedPrayer, setGeneratedPrayer] = useState("");
   const [prayerTitle, setPrayerTitle] = useState("");
+  const [shareModalVisible, setShareModalVisible] = useState(false);
 
   const prayerOpacity = useRef(new Animated.Value(0)).current;
   const prayerTranslate = useRef(new Animated.Value(40)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
 
   const generateMutation = useGeneratePrayer();
+  const { cardRef, isCapturing, shareAsImage, saveToLibrary } = useShareAsImage();
+
+  const resolvedTitle = prayerTitle.trim() || `${tradition} prayer for ${intentions[0] ?? "reflection"}`;
 
   const handleIntentionSelect = (value: string) => {
     setIntentions((prev) => {
@@ -53,6 +99,16 @@ export default function BuildScreen() {
   };
 
   const handleGenerate = async () => {
+    if (!isAuthenticated) {
+      login();
+      return;
+    }
+
+    if (!effectivePremium && genCount >= FREE_LIMIT) {
+      setPaywallVisible(true);
+      return;
+    }
+
     if (!tone) {
       showToast("Choose a tone for your prayer", "info");
       return;
@@ -87,8 +143,23 @@ export default function BuildScreen() {
       ]).start();
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
+
+      if (!effectivePremium) {
+        const newCount = localCount + 1;
+        setLocalCount(newCount);
+        await AsyncStorage.setItem(getMonthKey(), String(newCount));
+      }
+
+      queryClient.invalidateQueries({ queryKey: getGetPrayerUsageQueryKey() });
+    } catch (err: unknown) {
       Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true }).start();
+
+      const axiosErr = err as { response?: { status?: number } };
+      if (axiosErr?.response?.status === 402) {
+        setPaywallVisible(true);
+        return;
+      }
+
       showToast("Something got quiet. Tap to try again.", "error");
     }
   };
@@ -96,9 +167,8 @@ export default function BuildScreen() {
   const handleSave = async () => {
     if (!generatedPrayer) return;
     try {
-      const title = prayerTitle.trim() || `${tradition} prayer for ${intentions[0] ?? "reflection"}`;
       await savePrayer({
-        title,
+        title: resolvedTitle,
         tradition,
         intention: intentions.join(", "),
         text: generatedPrayer,
@@ -110,31 +180,52 @@ export default function BuildScreen() {
     }
   };
 
-  const handleShare = async () => {
-    if (!generatedPrayer) return;
-    const title = prayerTitle.trim() || "A prayer";
-    const shareText = `"${generatedPrayer}"\n\n— ${title} | Sacred Words`;
+  const handleShareText = async () => {
+    setShareModalVisible(false);
+    const shareText = `"${generatedPrayer}"\n\n— ${resolvedTitle} | Sacred Words`;
     try {
-      await Share.share({ message: shareText, title });
+      await Share.share({ message: shareText, title: resolvedTitle });
     } catch {
       // user cancelled
     }
+  };
+
+  const handleShareImage = async () => {
+    await shareAsImage({
+      title: resolvedTitle,
+      onSaveError: () => showToast("Could not share image", "error"),
+    });
+    setShareModalVisible(false);
+  };
+
+  const handleSaveToLibrary = async () => {
+    await saveToLibrary({
+      title: resolvedTitle,
+      onSaveSuccess: () => {
+        setShareModalVisible(false);
+        showToast("Image saved to camera roll");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      },
+      onSaveError: () => showToast("Could not save image", "error"),
+    });
   };
 
   const handleCopy = async () => {
     if (!generatedPrayer) return;
     try {
       const { default: Clipboard } = await import("expo-clipboard");
-      const title = prayerTitle.trim() || "A prayer";
-      await Clipboard.setStringAsync(`"${generatedPrayer}"\n\n— ${title} | Sacred Words`);
+      await Clipboard.setStringAsync(`"${generatedPrayer}"\n\n— ${resolvedTitle} | Sacred Words`);
       showToast("Copied to clipboard");
     } catch {
       showToast("Could not copy text", "error");
     }
   };
 
-  const topPad = Platform.OS === "web" ? insets.top + 67 : insets.top;
+  const topPad = Platform.OS === "web" ? 20 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : 0;
+
+  const remaining = Math.max(0, FREE_LIMIT - genCount);
+  const limitReached = isAuthenticated && !effectivePremium && genCount >= FREE_LIMIT;
 
   const sectionLabel = useCallback(
     (text: string, step: string) => (
@@ -154,6 +245,32 @@ export default function BuildScreen() {
     <View style={[styles.root, { backgroundColor: colors.cream }]}>
       <Toast message={toast?.message ?? ""} type={toast?.type} visible={!!toast} />
 
+      <PaywallScreen
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+      />
+
+      {/* Off-screen share card for image capture */}
+      {generatedPrayer ? (
+        <View style={styles.offScreen} pointerEvents="none">
+          <PrayerShareCard
+            ref={cardRef}
+            title={resolvedTitle}
+            text={generatedPrayer}
+            tradition={tradition}
+          />
+        </View>
+      ) : null}
+
+      <ShareOptionsModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        onShareAsImage={handleShareImage}
+        onSaveToLibrary={handleSaveToLibrary}
+        onShareAsText={handleShareText}
+        isCapturing={isCapturing}
+      />
+
       <KeyboardAwareScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[
@@ -164,17 +281,32 @@ export default function BuildScreen() {
         keyboardShouldPersistTaps="handled"
         bottomOffset={20}
       >
-        {/* Header */}
-        <View style={styles.headerSection}>
-          <Text style={[styles.appName, { color: colors.warmBrown, fontFamily: "PlayfairDisplay_600SemiBold" }]}>
-            Sacred Words
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
-            Build your own prayer
-          </Text>
-        </View>
+        {!authLoading && !isAuthenticated && !bannerDismissed && (
+          <View style={[styles.signInBanner, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}>
+            <Pressable
+              onPress={login}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in to generate prayers"
+              style={styles.signInBannerMain}
+            >
+              <Text style={[styles.signInBannerText, { color: colors.warmBrown, fontFamily: "Lato_400Regular" }]}>
+                Sign in to generate your own prayers
+              </Text>
+              <Text style={[styles.signInBannerCta, { color: colors.gold, fontFamily: "Lato_700Bold" }]}>
+                Sign in →
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setBannerDismissed(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss sign-in prompt"
+              hitSlop={8}
+            >
+              <Text style={[styles.signInBannerDismiss, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>✕</Text>
+            </Pressable>
+          </View>
+        )}
 
-        {/* Step 1: Tradition */}
         {sectionLabel("Your tradition", "①")}
         <ChipSelector
           options={TRADITIONS}
@@ -186,7 +318,6 @@ export default function BuildScreen() {
 
         <View style={styles.sectionGap} />
 
-        {/* Step 2: Intentions */}
         {sectionLabel("What brings you here?", "②")}
         <Text style={[styles.hint, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
           Choose up to 3
@@ -202,7 +333,6 @@ export default function BuildScreen() {
 
         <View style={styles.sectionGap} />
 
-        {/* Step 3: Tone */}
         {sectionLabel("The feeling of this prayer", "③")}
         <ChipSelector
           options={TONES}
@@ -213,7 +343,6 @@ export default function BuildScreen() {
 
         <View style={styles.sectionGap} />
 
-        {/* Step 4: Context */}
         {sectionLabel("What's on your heart?", "④")}
         <View style={styles.inputWrapper}>
           <TextInput
@@ -238,18 +367,21 @@ export default function BuildScreen() {
 
         <View style={styles.sectionGap} />
 
-        {/* Generate Button */}
         <View style={styles.inputWrapper}>
           <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
             <Pressable
               onPress={handleGenerate}
               disabled={generateMutation.isPending}
               accessibilityRole="button"
-              accessibilityLabel="Generate my prayer"
+              accessibilityLabel={
+                !isAuthenticated ? "Sign in to generate"
+                : limitReached ? "Unlock unlimited generations"
+                : "Generate my prayer"
+              }
               android_ripple={{ color: colors.goldLight }}
               style={[
                 styles.generateBtn,
-                { backgroundColor: colors.gold },
+                { backgroundColor: limitReached ? colors.sage : colors.gold },
                 generateMutation.isPending && styles.generateBtnLoading,
               ]}
             >
@@ -260,6 +392,14 @@ export default function BuildScreen() {
                     Writing your prayer…
                   </Text>
                 </View>
+              ) : !isAuthenticated ? (
+                <Text style={[styles.generateBtnText, { fontFamily: "Lato_700Bold" }]}>
+                  Sign in to Generate →
+                </Text>
+              ) : limitReached ? (
+                <Text style={[styles.generateBtnText, { fontFamily: "Lato_700Bold" }]}>
+                  ♛ Unlock Unlimited →
+                </Text>
               ) : (
                 <Text style={[styles.generateBtnText, { fontFamily: "Lato_700Bold" }]}>
                   Generate My Prayer →
@@ -267,9 +407,19 @@ export default function BuildScreen() {
               )}
             </Pressable>
           </Animated.View>
+
+          {isAuthenticated && !effectivePremium && !limitReached && (
+            <Text style={[styles.genLimit, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
+              {genCount} of {FREE_LIMIT} free prayer{genCount === 1 ? "" : "s"} used this month
+            </Text>
+          )}
+          {limitReached && (
+            <Text style={[styles.genLimit, { color: colors.sage, fontFamily: "Lato_400Regular" }]}>
+              Monthly limit reached — upgrade to generate unlimited prayers
+            </Text>
+          )}
         </View>
 
-        {/* Prayer Output */}
         {generatedPrayer ? (
           <Animated.View
             style={[
@@ -306,7 +456,6 @@ export default function BuildScreen() {
               {generatedPrayer}
             </Text>
 
-            {/* Action buttons 2×2 grid */}
             <View style={styles.actionGrid}>
               <Pressable
                 onPress={handleSave}
@@ -320,7 +469,7 @@ export default function BuildScreen() {
               </Pressable>
 
               <Pressable
-                onPress={handleShare}
+                onPress={() => setShareModalVisible(true)}
                 accessibilityRole="button"
                 accessibilityLabel="Share this prayer"
                 style={[styles.actionBtn, styles.actionBtnSolid, { backgroundColor: colors.sage }]}
@@ -363,9 +512,30 @@ export default function BuildScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flexGrow: 1 },
-  headerSection: { paddingHorizontal: 20, marginBottom: 32 },
-  appName: { fontSize: 32, lineHeight: 40 },
-  subtitle: { fontSize: 16, marginTop: 4 },
+  signInBanner: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  signInBannerMain: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  signInBannerText: { fontSize: 14, flex: 1 },
+  signInBannerCta: { fontSize: 14 },
+  signInBannerDismiss: { fontSize: 16, paddingHorizontal: 4 },
+  offScreen: {
+    position: "absolute",
+    top: -2000,
+    left: -2000,
+  },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -395,6 +565,11 @@ const styles = StyleSheet.create({
   generateBtnLoading: { opacity: 0.85 },
   generateBtnText: { color: "#FFFFFF", fontSize: 18 },
   loadingRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  genLimit: {
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: 8,
+  },
   prayerCard: {
     marginHorizontal: 20,
     marginTop: 24,

@@ -63,15 +63,28 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 - **Push**: `pnpm --filter @workspace/db run push`
 - Seeded with 12 multi-faith community prayers on first API server start
 
+## Subscriptions
+
+- **Provider**: RevenueCat (not yet connected — run seed script once account is created)
+- **Entitlement**: `premium`
+- **Free tier**: 3 AI prayer generations per month (tracked client-side in AsyncStorage)
+- **Premium**: Unlimited generations + community submission
+- **Seed script**: `pnpm --filter @workspace/scripts exec tsx src/seedRevenueCat.ts`
+- **Env vars needed** (after seeding): `EXPO_PUBLIC_REVENUECAT_TEST_API_KEY`, `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`, `REVENUECAT_PROJECT_ID`
+
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `artifacts/sacred-words/app/(tabs)/index.tsx` | Build tab — prayer generation UI |
+| `artifacts/sacred-words/app/(tabs)/index.tsx` | Build tab — prayer generation UI + free-tier gate |
 | `artifacts/sacred-words/app/(tabs)/library.tsx` | Library tab — saved prayers |
 | `artifacts/sacred-words/app/(tabs)/browse.tsx` | Browse tab — community prayers |
 | `artifacts/sacred-words/app/prayer/[id].tsx` | Prayer detail screen |
 | `artifacts/sacred-words/hooks/useDatabase.ts` | AsyncStorage CRUD |
 | `artifacts/sacred-words/constants/colors.ts` | Sacred Words design tokens |
+| `artifacts/sacred-words/lib/auth.tsx` | AuthProvider + useAuth (Replit OIDC) |
+| `artifacts/sacred-words/lib/revenuecat.tsx` | SubscriptionProvider + useSubscription (RevenueCat) |
+| `artifacts/sacred-words/components/PaywallScreen.tsx` | Paywall modal |
 | `artifacts/api-server/src/routes/prayers.ts` | generate + browse backend routes |
+| `scripts/src/seedRevenueCat.ts` | RevenueCat seed script (run once after account created) |
 | `lib/api-spec/openapi.yaml` | OpenAPI contract |

@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet, View } from "react-native";
+import { Animated, StyleSheet, View, type DimensionValue } from "react-native";
 import { useColors } from "@/hooks/useColors";
 
-function SkeletonRow({ width }: { width: string | number }) {
+function SkeletonRow({ width }: { width: DimensionValue }) {
   const colors = useColors();
   const opacity = useRef(new Animated.Value(0.4)).current;
 
@@ -26,12 +26,11 @@ function SkeletonRow({ width }: { width: string | number }) {
   }, [opacity]);
 
   return (
-    <Animated.View
-      style={[
-        styles.skeletonRow,
-        { width, backgroundColor: colors.border, opacity },
-      ]}
-    />
+    <View style={[styles.skeletonRow, { width }]}>
+      <Animated.View
+        style={[StyleSheet.absoluteFill, { backgroundColor: colors.border, borderRadius: 7, opacity }]}
+      />
+    </View>
   );
 }
 

@@ -18,6 +18,9 @@ import { Toast } from "@/components/Toast";
 import { useToast } from "@/hooks/useToast";
 import { getPrayerById, deletePrayer } from "@/hooks/useDatabase";
 import type { SavedPrayer } from "@/hooks/useDatabase";
+import { ShareOptionsModal } from "@/components/ShareOptionsModal";
+import PrayerShareCard from "@/components/PrayerShareCard";
+import { useShareAsImage } from "@/hooks/useShareAsImage";
 
 function formatDate(dateStr: string): string {
   try {
@@ -40,6 +43,9 @@ export default function PrayerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { toast, showToast } = useToast();
   const [prayer, setPrayer] = useState<SavedPrayer | null>(null);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+
+  const { cardRef, isCapturing, shareAsImage, saveToLibrary } = useShareAsImage();
 
   useEffect(() => {
     if (id) {
@@ -67,14 +73,37 @@ export default function PrayerDetailScreen() {
     );
   };
 
-  const handleShare = async () => {
+  const handleShareText = async () => {
     if (!prayer) return;
+    setShareModalVisible(false);
     const shareText = `"${prayer.text}"\n\n— ${prayer.title} | Sacred Words`;
     try {
       await Share.share({ message: shareText, title: prayer.title });
     } catch {
       // cancelled
     }
+  };
+
+  const handleShareImage = async () => {
+    if (!prayer) return;
+    await shareAsImage({
+      title: prayer.title,
+      onSaveError: () => showToast("Could not share image", "error"),
+    });
+    setShareModalVisible(false);
+  };
+
+  const handleSaveToLibrary = async () => {
+    if (!prayer) return;
+    await saveToLibrary({
+      title: prayer.title,
+      onSaveSuccess: () => {
+        setShareModalVisible(false);
+        showToast("Image saved to camera roll");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      },
+      onSaveError: () => showToast("Could not save image", "error"),
+    });
   };
 
   const handleCopy = async () => {
@@ -100,6 +129,25 @@ export default function PrayerDetailScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.cream }]}>
       <Toast message={toast?.message ?? ""} type={toast?.type} visible={!!toast} />
+
+      {/* Off-screen share card for image capture */}
+      <View style={styles.offScreen} pointerEvents="none">
+        <PrayerShareCard
+          ref={cardRef}
+          title={prayer.title}
+          text={prayer.text}
+          tradition={prayer.tradition}
+        />
+      </View>
+
+      <ShareOptionsModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        onShareAsImage={handleShareImage}
+        onSaveToLibrary={handleSaveToLibrary}
+        onShareAsText={handleShareText}
+        isCapturing={isCapturing}
+      />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: colors.border }]}>
@@ -162,7 +210,7 @@ export default function PrayerDetailScreen() {
         ]}
       >
         <Pressable
-          onPress={handleShare}
+          onPress={() => setShareModalVisible(true)}
           accessibilityRole="button"
           accessibilityLabel="Share this prayer"
           style={[styles.actionBtn, { backgroundColor: colors.sage }]}
@@ -197,6 +245,11 @@ export default function PrayerDetailScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  offScreen: {
+    position: "absolute",
+    top: -2000,
+    left: -2000,
+  },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 12,

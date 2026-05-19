@@ -21,7 +21,7 @@ import { savePrayer } from "@/hooks/useDatabase";
 import { useGetBrowsePrayers } from "@workspace/api-client-react";
 import type { CommunityPrayer } from "@workspace/api-client-react";
 
-const TRADITION_FILTERS = ["All", "Universal", "Christian", "Jewish", "Islamic", "Buddhist", "Hindu", "Indigenous"];
+const TRADITION_FILTERS = ["All", "Universal", "Christian", "Catholic", "Jewish", "Islamic", "Buddhist", "Hindu", "Indigenous", "Secular"];
 
 interface CommunityPrayerCardProps {
   prayer: CommunityPrayer;

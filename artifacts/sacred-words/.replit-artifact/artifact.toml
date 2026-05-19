@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "Sacred Words"
+version = "1.0.0"
+id = "artifacts/sacred-words"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 19016
+
+[services.development]
+run = "pnpm --filter @workspace/sacred-words run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/sacred-words", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/sacred-words", "run", "serve" ]
+
+[services.env]
+PORT = "19016"
+BASE_PATH = "/"

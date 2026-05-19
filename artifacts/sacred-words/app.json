@@ -38,7 +38,14 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Sacred Words to save prayer images to your photo library.",
+          "savePhotosPermission": "Allow Sacred Words to save prayer images to your photo library."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
