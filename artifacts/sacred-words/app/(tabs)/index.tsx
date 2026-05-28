@@ -11,8 +11,8 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
 import { ChipSelector } from "@/components/ChipSelector";
@@ -28,17 +28,15 @@ import { ShareOptionsModal } from "@/components/ShareOptionsModal";
 import { ShareToCommunityModal } from "@/components/ShareToCommunityModal";
 import PrayerShareCard from "@/components/PrayerShareCard";
 import { useShareAsImage } from "@/hooks/useShareAsImage";
+import { MilestoneModal } from "@/components/MilestoneModal";
+import { useStreak, MILESTONE_DAYS } from "@/hooks/useStreak";
+import { recordTraditionUsed, getMostUsedTradition } from "@/hooks/useTraditionHistory";
 
 const TRADITIONS = ["Universal", "Christian", "Catholic", "Jewish", "Islamic", "Buddhist", "Hindu", "Indigenous", "Secular"];
 const INTENTIONS = ["Gratitude", "Healing", "Guidance", "Strength", "Grief", "Protection", "Peace", "Celebration", "Hope", "Forgiveness"];
 const TONES = ["Contemplative", "Joyful", "Sorrowful", "Urgent", "Gentle", "Bold", "Quiet"];
 
 const FREE_LIMIT = 3;
-
-function getMonthKey(): string {
-  const now = new Date();
-  return `prayer_gen_${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-}
 
 export default function BuildScreen() {
   const colors = useColors();
@@ -47,34 +45,33 @@ export default function BuildScreen() {
   const { isAuthenticated, isLoading: authLoading, login } = useAuth();
   const { isPremium } = useSubscription();
   const queryClient = useQueryClient();
+  const { streak, refresh: refreshStreak, record: recordStreak } = useStreak();
 
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
-  const [localCount, setLocalCount] = useState(0);
+  const [milestoneStreak, setMilestoneStreak] = useState(0);
+  const [milestoneVisible, setMilestoneVisible] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshStreak();
+    }, [refreshStreak])
+  );
+
+  const [tradition, setTradition] = useState("Universal");
+
+  useEffect(() => {
+    getMostUsedTradition().then(setTradition);
+  }, []);
 
   const usageQuery = useGetPrayerUsage({
     query: { queryKey: getGetPrayerUsageQueryKey(), enabled: isAuthenticated, staleTime: 60 * 1000 },
   });
 
-  const serverCount = usageQuery.data?.count ?? 0;
+  const genCount = usageQuery.data?.count ?? 0;
   const serverIsPremium = usageQuery.data?.isPremium ?? false;
   const effectivePremium = isPremium || serverIsPremium;
-  // Server is authoritative when authenticated; local count is a pre-load fallback only.
-  const genCount = isAuthenticated ? serverCount : localCount;
 
-  useEffect(() => {
-    AsyncStorage.getItem(getMonthKey()).then((val) => {
-      setLocalCount(val ? parseInt(val, 10) : 0);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (serverCount > localCount) {
-      setLocalCount(serverCount);
-    }
-  }, [serverCount]);
-
-  const [tradition, setTradition] = useState("Universal");
   const [intentions, setIntentions] = useState<string[]>([]);
   const [tone, setTone] = useState("");
   const [context, setContext] = useState("");
@@ -101,11 +98,6 @@ export default function BuildScreen() {
   };
 
   const handleGenerate = async () => {
-    if (!isAuthenticated) {
-      login();
-      return;
-    }
-
     if (!effectivePremium && genCount >= FREE_LIMIT) {
       setPaywallVisible(true);
       return;
@@ -146,18 +138,19 @@ export default function BuildScreen() {
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      if (!effectivePremium) {
-        const newCount = localCount + 1;
-        setLocalCount(newCount);
-        await AsyncStorage.setItem(getMonthKey(), String(newCount));
+      void recordTraditionUsed(tradition);
+      const newStreak = await recordStreak();
+      if (MILESTONE_DAYS.includes(newStreak)) {
+        setMilestoneStreak(newStreak);
+        setMilestoneVisible(true);
       }
 
       queryClient.invalidateQueries({ queryKey: getGetPrayerUsageQueryKey() });
     } catch (err: unknown) {
       Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true }).start();
 
-      const axiosErr = err as { response?: { status?: number } };
-      if (axiosErr?.response?.status === 402) {
+      const apiErr = err as { status?: number };
+      if (apiErr?.status === 402) {
         setPaywallVisible(true);
         return;
       }
@@ -226,7 +219,6 @@ export default function BuildScreen() {
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
-  const remaining = Math.max(0, FREE_LIMIT - genCount);
   const limitReached = isAuthenticated && !effectivePremium && genCount >= FREE_LIMIT;
 
   const sectionLabel = useCallback(
@@ -250,6 +242,12 @@ export default function BuildScreen() {
       <PaywallScreen
         visible={paywallVisible}
         onClose={() => setPaywallVisible(false)}
+      />
+
+      <MilestoneModal
+        visible={milestoneVisible}
+        streak={milestoneStreak}
+        onClose={() => setMilestoneVisible(false)}
       />
 
       {/* Off-screen share card for image capture */}
@@ -296,6 +294,14 @@ export default function BuildScreen() {
         keyboardShouldPersistTaps="handled"
         bottomOffset={20}
       >
+        {streak > 0 && (
+          <View style={[styles.streakBadge, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}>
+            <Text style={[styles.streakText, { color: colors.warmBrown, fontFamily: "Lato_700Bold" }]}>
+              🔥 {streak}-day streak
+            </Text>
+          </View>
+        )}
+
         {!authLoading && !isAuthenticated && !bannerDismissed && (
           <View style={[styles.signInBanner, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}>
             <Pressable
@@ -389,8 +395,7 @@ export default function BuildScreen() {
               disabled={generateMutation.isPending}
               accessibilityRole="button"
               accessibilityLabel={
-                !isAuthenticated ? "Sign in to generate"
-                : limitReached ? "Unlock unlimited generations"
+                limitReached ? "Unlock unlimited generations"
                 : "Generate my prayer"
               }
               android_ripple={{ color: colors.goldLight }}
@@ -407,10 +412,6 @@ export default function BuildScreen() {
                     Writing your prayer…
                   </Text>
                 </View>
-              ) : !isAuthenticated ? (
-                <Text style={[styles.generateBtnText, { fontFamily: "Lato_700Bold" }]}>
-                  Sign in to Generate →
-                </Text>
               ) : limitReached ? (
                 <Text style={[styles.generateBtnText, { fontFamily: "Lato_700Bold" }]}>
                   ♛ Unlock Unlimited →
@@ -463,6 +464,7 @@ export default function BuildScreen() {
             />
 
             <Text
+              selectable
               style={[
                 styles.prayerText,
                 { color: colors.ink, fontFamily: "PlayfairDisplay_400Regular_Italic" },
@@ -557,6 +559,16 @@ const styles = StyleSheet.create({
   signInBannerText: { fontSize: 14, flex: 1 },
   signInBannerCta: { fontSize: 14 },
   signInBannerDismiss: { fontSize: 16, paddingHorizontal: 4 },
+  streakBadge: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 100,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    alignSelf: "flex-start",
+  },
+  streakText: { fontSize: 14 },
   offScreen: {
     position: "absolute",
     top: -2000,

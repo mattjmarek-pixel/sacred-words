@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FlatList,
   Modal,
@@ -13,12 +13,17 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useLocalSearchParams } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { LoadingCards } from "@/components/LoadingPrayer";
 import { Toast } from "@/components/Toast";
 import { useToast } from "@/hooks/useToast";
 import { savePrayer } from "@/hooks/useDatabase";
 import { useGetBrowsePrayers } from "@workspace/api-client-react";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useShareAsImage } from "@/hooks/useShareAsImage";
+import { ShareOptionsModal } from "@/components/ShareOptionsModal";
+import PrayerShareCard from "@/components/PrayerShareCard";
 import type { CommunityPrayer } from "@workspace/api-client-react";
 
 const TRADITION_FILTERS = ["All", "Universal", "Christian", "Catholic", "Jewish", "Islamic", "Buddhist", "Hindu", "Indigenous", "Secular"];
@@ -46,9 +51,18 @@ function CommunityPrayerCard({ prayer, onPress }: CommunityPrayerCardProps) {
       ]}
     >
       <View style={styles.cardTop}>
-        <Text style={[styles.cardTitle, { color: colors.warmBrown, fontFamily: "PlayfairDisplay_600SemiBold" }]}>
-          {prayer.title}
-        </Text>
+        <View style={styles.cardTitleRow}>
+          <Text style={[styles.cardTitle, { color: colors.warmBrown, fontFamily: "PlayfairDisplay_600SemiBold" }]}>
+            {prayer.title}
+          </Text>
+          {prayer.isUserSubmitted && (
+            <View style={[styles.communityBadge, { backgroundColor: colors.sageLight }]}>
+              <Text style={[styles.communityBadgeText, { color: colors.sage, fontFamily: "Lato_700Bold" }]}>
+                Community
+              </Text>
+            </View>
+          )}
+        </View>
         <View style={styles.cardBadges}>
           <View style={[styles.badge, { backgroundColor: colors.sageLight }]}>
             <Text style={[styles.badgeText, { color: colors.sage, fontFamily: "Lato_700Bold" }]}>
@@ -78,6 +92,10 @@ export default function BrowseScreen() {
   const { toast, showToast } = useToast();
   const [selectedTradition, setSelectedTradition] = useState("All");
   const [selectedPrayer, setSelectedPrayer] = useState<CommunityPrayer | null>(null);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const { isConnected } = useNetworkStatus();
+  const { cardRef, isCapturing, shareAsImage, saveToLibrary } = useShareAsImage();
+  const { prayerId } = useLocalSearchParams<{ prayerId?: string }>();
 
   const { data, isLoading, isError, refetch } = useGetBrowsePrayers(
     { tradition: selectedTradition },
@@ -85,6 +103,16 @@ export default function BrowseScreen() {
   );
 
   const prayers = data?.prayers ?? [];
+
+  // When arriving via notification deep-link, auto-open the matching prayer
+  useEffect(() => {
+    if (!prayerId || prayers.length === 0) return;
+    const id = Number(prayerId);
+    const match = prayers.find((p) => p.id === id);
+    if (match) {
+      setSelectedPrayer(match);
+    }
+  }, [prayerId, prayers]);
 
   const handleSavePrayer = async () => {
     if (!selectedPrayer) return;
@@ -103,7 +131,7 @@ export default function BrowseScreen() {
     }
   };
 
-  const handleSharePrayer = async () => {
+  const handleShareText = async () => {
     if (!selectedPrayer) return;
     const shareText = `"${selectedPrayer.text}"\n\n— ${selectedPrayer.title} | Sacred Words`;
     try {
@@ -111,6 +139,28 @@ export default function BrowseScreen() {
     } catch {
       // cancelled
     }
+  };
+
+  const handleShareImage = async () => {
+    if (!selectedPrayer) return;
+    await shareAsImage({
+      title: selectedPrayer.title,
+      onSaveError: () => showToast("Could not share image", "error"),
+    });
+    setShareModalVisible(false);
+  };
+
+  const handleSaveImage = async () => {
+    if (!selectedPrayer) return;
+    await saveToLibrary({
+      title: selectedPrayer.title,
+      onSaveSuccess: () => {
+        setShareModalVisible(false);
+        showToast("Image saved to camera roll");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      },
+      onSaveError: () => showToast("Could not save image", "error"),
+    });
   };
 
   const topPad = Platform.OS === "web" ? insets.top + 67 : insets.top + 20;
@@ -121,10 +171,41 @@ export default function BrowseScreen() {
     <View style={[styles.root, { backgroundColor: colors.cream }]}>
       <Toast message={toast?.message ?? ""} type={toast?.type} visible={!!toast} />
 
+      {/* Off-screen share card for image capture */}
+      {selectedPrayer && (
+        <View style={styles.offScreen} pointerEvents="none">
+          <PrayerShareCard
+            ref={cardRef}
+            title={selectedPrayer.title}
+            text={selectedPrayer.text}
+            tradition={selectedPrayer.tradition}
+          />
+        </View>
+      )}
+
+      <ShareOptionsModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        onShareAsImage={handleShareImage}
+        onSaveToLibrary={handleSaveImage}
+        onShareAsText={handleShareText}
+        isCapturing={isCapturing}
+      />
+
       <View style={[styles.header, { paddingTop: topPad }]}>
         <Text style={[styles.headerTitle, { color: colors.warmBrown, fontFamily: "PlayfairDisplay_600SemiBold" }]}>
           Community Prayers
         </Text>
+
+        {isConnected === false && (
+          <View style={[styles.offlineBanner, { backgroundColor: colors.parchment, borderColor: colors.border }]}>
+            <Feather name="wifi-off" size={14} color={colors.muted} />
+            <Text style={[styles.offlineText, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
+              No connection — showing cached results
+            </Text>
+          </View>
+        )}
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -165,16 +246,20 @@ export default function BrowseScreen() {
       ) : isError ? (
         <View style={styles.errorContainer}>
           <Text style={[styles.errorText, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
-            Could not load community prayers.
+            {isConnected === false
+              ? "No connection — showing cached results"
+              : "Could not load community prayers."}
           </Text>
-          <Pressable
-            onPress={() => refetch()}
-            style={[styles.retryBtn, { borderColor: colors.gold }]}
-          >
-            <Text style={[styles.retryText, { color: colors.gold, fontFamily: "Lato_700Bold" }]}>
-              Try again
-            </Text>
-          </Pressable>
+          {isConnected !== false && (
+            <Pressable
+              onPress={() => refetch()}
+              style={[styles.retryBtn, { borderColor: colors.gold }]}
+            >
+              <Text style={[styles.retryText, { color: colors.gold, fontFamily: "Lato_700Bold" }]}>
+                Try again
+              </Text>
+            </Pressable>
+          )}
         </View>
       ) : (
         <FlatList
@@ -226,6 +311,13 @@ export default function BrowseScreen() {
                   {selectedPrayer?.intention}
                 </Text>
               </View>
+              {selectedPrayer?.isUserSubmitted && (
+                <View style={[styles.badge, styles.communityBadge, { backgroundColor: colors.sageLight }]}>
+                  <Text style={[styles.badgeText, { color: colors.sage, fontFamily: "Lato_700Bold" }]}>
+                    Community
+                  </Text>
+                </View>
+              )}
             </View>
 
             <Text style={[styles.modalTitle, { color: colors.warmBrown, fontFamily: "PlayfairDisplay_600SemiBold" }]}>
@@ -238,7 +330,7 @@ export default function BrowseScreen() {
 
           <View style={[styles.modalActions, { paddingBottom: modalBottom + 16, borderTopColor: colors.border, backgroundColor: colors.cream }]}>
             <Pressable
-              onPress={handleSharePrayer}
+              onPress={() => setShareModalVisible(true)}
               accessibilityRole="button"
               accessibilityLabel="Share this prayer"
               style={[styles.modalBtn, { backgroundColor: colors.sage }]}
@@ -262,8 +354,19 @@ export default function BrowseScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingBottom: 12, gap: 16 },
+  offScreen: { position: "absolute", top: -2000, left: -2000 },
+  header: { paddingHorizontal: 20, paddingBottom: 12, gap: 12 },
   headerTitle: { fontSize: 28, lineHeight: 36 },
+  offlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  offlineText: { fontSize: 13 },
   filterChips: { gap: 10, paddingRight: 20 },
   filterChip: {
     height: 36,
@@ -288,7 +391,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cardTop: { gap: 8 },
-  cardTitle: { fontSize: 18 },
+  cardTitleRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  cardTitle: { fontSize: 18, flex: 1 },
+  communityBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, alignSelf: "flex-start" },
+  communityBadgeText: { fontSize: 11 },
   cardBadges: { flexDirection: "row", gap: 8 },
   badge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 100 },
   badgeText: { fontSize: 12 },

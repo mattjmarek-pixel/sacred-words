@@ -183,7 +183,7 @@ export function PaywallScreen({ visible, onClose }: PaywallScreenProps) {
             </View>
 
             {!!error && (
-              <Text style={[styles.statusText, { color: "#C0392B", fontFamily: "Lato_400Regular" }]}>
+              <Text style={[styles.statusText, { color: colors.destructive, fontFamily: "Lato_400Regular" }]}>
                 {error}
               </Text>
             )}

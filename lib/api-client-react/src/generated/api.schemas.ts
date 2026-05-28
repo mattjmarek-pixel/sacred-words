@@ -18,6 +18,7 @@ export interface GeneratePrayerRequest {
 
 export interface GeneratedPrayer {
   prayer: string;
+  isPremium: boolean;
 }
 
 export interface FreeTierLimitReached {
@@ -39,6 +40,7 @@ export interface CommunityPrayer {
   tradition: string;
   intention: string;
   text: string;
+  isUserSubmitted: boolean;
   createdAt: string;
 }
 

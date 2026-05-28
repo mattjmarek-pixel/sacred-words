@@ -3,10 +3,11 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 
 import { useColors } from "@/hooks/useColors";
+import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
 import { useSubscription } from "@/lib/revenuecat";
 import { PaywallScreen } from "@/components/PaywallScreen";
@@ -101,8 +102,8 @@ function ProfileButton({ onGoPremium }: ProfileButtonProps) {
 
 function ClassicTabLayout() {
   const colors = useColors();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const { resolvedScheme } = useTheme();
+  const isDark = resolvedScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
 
@@ -180,6 +181,16 @@ function ClassicTabLayout() {
             tabBarLabel: "Browse",
             tabBarIcon: ({ color }) => (
               <Feather name="globe" size={22} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            title: "Settings",
+            tabBarLabel: "Settings",
+            tabBarIcon: ({ color }) => (
+              <Feather name="settings" size={22} color={color} />
             ),
           }}
         />

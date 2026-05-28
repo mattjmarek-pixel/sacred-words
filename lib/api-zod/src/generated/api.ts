@@ -27,6 +27,7 @@ export const GeneratePrayerBody = zod.object({
 
 export const GeneratePrayerResponse = zod.object({
   prayer: zod.string(),
+  isPremium: zod.boolean(),
 });
 
 /**
@@ -46,6 +47,7 @@ export const GetBrowsePrayersResponse = zod.object({
       tradition: zod.string(),
       intention: zod.string(),
       text: zod.string(),
+      isUserSubmitted: zod.boolean(),
       createdAt: zod.string(),
     }),
   ),

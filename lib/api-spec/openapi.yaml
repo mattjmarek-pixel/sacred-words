@@ -297,8 +297,11 @@ components:
       properties:
         prayer:
           type: string
+        isPremium:
+          type: boolean
       required:
         - prayer
+        - isPremium
 
     FreeTierLimitReached:
       type: object
@@ -344,6 +347,8 @@ components:
           type: string
         text:
           type: string
+        isUserSubmitted:
+          type: boolean
         createdAt:
           type: string
       required:
@@ -352,6 +357,7 @@ components:
         - tradition
         - intention
         - text
+        - isUserSubmitted
         - createdAt
 
     CommunityPrayerList:

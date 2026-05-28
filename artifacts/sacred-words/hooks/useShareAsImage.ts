@@ -30,16 +30,19 @@ export function useShareAsImage() {
 
   const shareAsImage = useCallback(
     async ({ title, onSaveError }: ShareAsImageOptions) => {
+      if (Platform.OS === "web") {
+        Alert.alert(
+          "Mobile only",
+          "Open Sacred Words in the iOS or Android app to share a prayer as an image."
+        );
+        return;
+      }
+
       setIsCapturing(true);
       try {
         const uri = await captureCard();
         if (!uri) {
           Alert.alert("Could not capture image", "Please try again.");
-          return;
-        }
-
-        if (Platform.OS === "web") {
-          Alert.alert("Not available", "Image sharing is only supported on mobile devices.");
           return;
         }
 
@@ -65,16 +68,19 @@ export function useShareAsImage() {
 
   const saveToLibrary = useCallback(
     async ({ title, onSaveSuccess, onSaveError }: ShareAsImageOptions) => {
+      if (Platform.OS === "web") {
+        Alert.alert(
+          "Mobile only",
+          "Open Sacred Words in the iOS or Android app to save a prayer image to your camera roll."
+        );
+        return;
+      }
+
       setIsCapturing(true);
       try {
         const uri = await captureCard();
         if (!uri) {
           Alert.alert("Could not capture image", "Please try again.");
-          return;
-        }
-
-        if (Platform.OS === "web") {
-          Alert.alert("Not available", "Saving to camera roll is only supported on mobile devices.");
           return;
         }
 

@@ -27,6 +27,7 @@ const colors = {
     // Destructive
     destructive: "#C0392B",
     destructiveForeground: "#FFFFFF",
+    destructiveSurface: "#FEF2F2",
 
     // Borders
     border: "#D8D2EE",
@@ -75,6 +76,7 @@ const colors = {
     // Destructive
     destructive: "#E05252",
     destructiveForeground: "#FFFFFF",
+    destructiveSurface: "#2A1010",
 
     // Borders
     border: "#2A1F4A",

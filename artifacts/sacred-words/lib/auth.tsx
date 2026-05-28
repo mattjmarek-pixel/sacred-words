@@ -6,9 +6,9 @@ import * as SecureStore from "expo-secure-store";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const AUTH_TOKEN_KEY = "auth_session_token";
+export const AUTH_TOKEN_KEY = "auth_session_token";
 
-const tokenStore = {
+export const tokenStore = {
   async get(key: string): Promise<string | null> {
     if (Platform.OS === "web") {
       return localStorage.getItem(key);

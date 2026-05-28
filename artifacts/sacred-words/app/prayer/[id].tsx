@@ -22,6 +22,7 @@ import { ShareOptionsModal } from "@/components/ShareOptionsModal";
 import { ShareToCommunityModal } from "@/components/ShareToCommunityModal";
 import PrayerShareCard from "@/components/PrayerShareCard";
 import { useShareAsImage } from "@/hooks/useShareAsImage";
+import { useAuth } from "@/lib/auth";
 
 function formatDate(dateStr: string): string {
   try {
@@ -48,6 +49,7 @@ export default function PrayerDetailScreen() {
   const [communityModalVisible, setCommunityModalVisible] = useState(false);
 
   const { cardRef, isCapturing, shareAsImage, saveToLibrary } = useShareAsImage();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (id) {
@@ -208,7 +210,7 @@ export default function PrayerDetailScreen() {
 
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-        <Text style={[styles.prayerText, { color: colors.ink, fontFamily: "PlayfairDisplay_400Regular_Italic" }]}>
+        <Text selectable style={[styles.prayerText, { color: colors.ink, fontFamily: "PlayfairDisplay_400Regular_Italic" }]}>
           {prayer.text}
         </Text>
       </ScrollView>
@@ -234,15 +236,17 @@ export default function PrayerDetailScreen() {
           <Text style={[styles.actionBtnText, { fontFamily: "Lato_700Bold" }]}>Share</Text>
         </Pressable>
 
-        <Pressable
-          onPress={() => setCommunityModalVisible(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Share prayer to community"
-          style={[styles.actionBtn, { backgroundColor: colors.parchment, borderColor: colors.gold, borderWidth: 1.5 }]}
-        >
-          <Feather name="users" size={18} color={colors.gold} />
-          <Text style={[styles.actionBtnText, { color: colors.gold, fontFamily: "Lato_700Bold" }]}>Community</Text>
-        </Pressable>
+        {isAuthenticated && (
+          <Pressable
+            onPress={() => setCommunityModalVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Share prayer to community"
+            style={[styles.actionBtn, { backgroundColor: colors.parchment, borderColor: colors.gold, borderWidth: 1.5 }]}
+          >
+            <Feather name="users" size={18} color={colors.gold} />
+            <Text style={[styles.actionBtnText, { color: colors.gold, fontFamily: "Lato_700Bold" }]}>Community</Text>
+          </Pressable>
+        )}
 
         <Pressable
           onPress={handleCopy}
@@ -258,7 +262,7 @@ export default function PrayerDetailScreen() {
           onPress={handleDelete}
           accessibilityRole="button"
           accessibilityLabel="Delete this prayer"
-          style={[styles.actionBtn, { backgroundColor: "#FEF2F2", borderColor: colors.destructive, borderWidth: 1.5 }]}
+          style={[styles.actionBtn, { backgroundColor: colors.destructiveSurface, borderColor: colors.destructive, borderWidth: 1.5 }]}
         >
           <Feather name="trash-2" size={18} color={colors.destructive} />
           <Text style={[styles.actionBtnText, { color: colors.destructive, fontFamily: "Lato_700Bold" }]}>Delete</Text>

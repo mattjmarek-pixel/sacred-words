@@ -12,5 +12,6 @@ export interface CommunityPrayer {
   tradition: string;
   intention: string;
   text: string;
+  isUserSubmitted: boolean;
   createdAt: string;
 }

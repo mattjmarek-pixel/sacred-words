@@ -210,7 +210,7 @@ export function ShareToCommunityModal({
           )}
 
           {submitMutation.isError && !needsLogin && (
-            <View style={[styles.errorBox, { backgroundColor: "#FEF2F2", borderColor: colors.destructive }]}>
+            <View style={[styles.errorBox, { backgroundColor: colors.destructiveSurface, borderColor: colors.destructive }]}>
               <Text style={[styles.errorText, { color: colors.destructive, fontFamily: "Lato_400Regular" }]}>
                 Something went wrong. Please try again.
               </Text>

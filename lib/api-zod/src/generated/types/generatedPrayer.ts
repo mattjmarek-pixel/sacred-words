@@ -8,4 +8,5 @@
 
 export interface GeneratedPrayer {
   prayer: string;
+  isPremium: boolean;
 }

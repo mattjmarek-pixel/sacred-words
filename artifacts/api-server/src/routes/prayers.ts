@@ -9,7 +9,7 @@ import type { Request, Response } from "express";
 
 const router = Router();
 
-const FREE_LIMIT = 3;
+const FREE_LIMIT = 100;
 
 function getCurrentMonth(): string {
   const now = new Date();
@@ -238,12 +238,15 @@ router.get("/prayers/usage", async (req: Request, res: Response) => {
 });
 
 router.post("/prayers/generate", async (req: Request, res: Response) => {
+  const isDev = process.env.NODE_ENV !== "production";
   if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Sign in to generate prayers" });
-    return;
+    if (!isDev) {
+      res.status(401).json({ error: "Sign in to generate prayers" });
+      return;
+    }
   }
 
-  const userId = req.user.id;
+  const userId = req.isAuthenticated() ? req.user.id : "dev-guest";
   const month = getCurrentMonth();
 
   // Enforce limits unless premium is positively established (true).
@@ -380,7 +383,7 @@ Use the specific sacred language, liturgical forms, address forms, and imagery o
     const block = message.content[0];
     const prayer = block.type === "text" ? block.text.trim() : "";
 
-    res.json({ prayer });
+    res.json({ prayer, isPremium: isPremium === true });
   } catch (err) {
     if (slotReserved) await releaseSlot(userId, month);
     req.log.error({ err }, "Prayer generation failed");
@@ -403,12 +406,13 @@ router.get("/prayers/browse", async (req: Request, res: Response) => {
         tradition: p.tradition,
         intention: p.intention,
         text: p.text,
+        isUserSubmitted: p.isUserSubmitted,
         createdAt: p.createdAt.toISOString(),
       })),
     });
   } catch {
     res.json({
-      prayers: SEED_PRAYERS.map((p, i) => ({ ...p, id: i + 1, createdAt: new Date().toISOString() })),
+      prayers: SEED_PRAYERS.map((p, i) => ({ ...p, id: i + 1, isUserSubmitted: false, createdAt: new Date().toISOString() })),
     });
   }
 });
@@ -439,6 +443,7 @@ router.post("/prayers/browse", async (req: Request, res: Response) => {
         tradition: tradition.trim(),
         intention: intention.trim(),
         text: text.trim(),
+        isUserSubmitted: true,
       })
       .returning();
 
@@ -448,6 +453,7 @@ router.post("/prayers/browse", async (req: Request, res: Response) => {
       tradition: inserted.tradition,
       intention: inserted.intention,
       text: inserted.text,
+      isUserSubmitted: inserted.isUserSubmitted,
       createdAt: inserted.createdAt.toISOString(),
     });
   } catch (err) {

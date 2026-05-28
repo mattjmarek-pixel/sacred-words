@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
+  AccessibilityInfo,
+  Animated,
   FlatList,
   Platform,
   Pressable,
@@ -14,17 +16,56 @@ import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { PrayerCard } from "@/components/PrayerCard";
 import { useSavedPrayers, searchPrayers } from "@/hooks/useDatabase";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import type { SavedPrayer } from "@/hooks/useDatabase";
 
 function EmptyState() {
   const colors = useColors();
   const router = useRouter();
+  const flameOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    let animation: Animated.CompositeAnimation | null = null;
+
+    AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
+      if (reduceMotion) return;
+
+      animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(flameOpacity, {
+            toValue: 0.7,
+            duration: 700,
+            useNativeDriver: true,
+          }),
+          Animated.timing(flameOpacity, {
+            toValue: 1.0,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.timing(flameOpacity, {
+            toValue: 0.85,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(flameOpacity, {
+            toValue: 1.0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animation.start();
+    });
+
+    return () => {
+      animation?.stop();
+    };
+  }, [flameOpacity]);
 
   return (
     <View style={styles.emptyCenter}>
-      {/* CSS-drawn candle */}
       <View style={styles.candleWrapper}>
-        <View style={[styles.flame, { backgroundColor: colors.gold }]} />
+        <Animated.View style={[styles.flame, { backgroundColor: colors.gold, opacity: flameOpacity }]} />
         <View style={[styles.wick, { backgroundColor: colors.warmBrown }]} />
         <View style={[styles.candleBody, { backgroundColor: colors.parchment, borderColor: colors.warmBrown }]} />
       </View>
@@ -56,6 +97,7 @@ export default function LibraryScreen() {
   const { prayers, loading, refetch } = useSavedPrayers();
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredPrayers, setFilteredPrayers] = useState<SavedPrayer[]>([]);
+  const { isConnected } = useNetworkStatus();
 
   useFocusEffect(
     useCallback(() => {
@@ -82,6 +124,16 @@ export default function LibraryScreen() {
         <Text style={[styles.headerTitle, { color: colors.warmBrown, fontFamily: "PlayfairDisplay_600SemiBold" }]}>
           My Library
         </Text>
+
+        {isConnected === false && (
+          <View style={[styles.offlineBanner, { backgroundColor: colors.parchment, borderColor: colors.border }]}>
+            <Feather name="wifi-off" size={14} color={colors.muted} />
+            <Text style={[styles.offlineText, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
+              Offline — showing your saved prayers
+            </Text>
+          </View>
+        )}
+
         <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Feather name="search" size={18} color={colors.muted} />
           <TextInput
@@ -122,9 +174,19 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-    gap: 16,
+    gap: 12,
   },
   headerTitle: { fontSize: 28, lineHeight: 36 },
+  offlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  offlineText: { fontSize: 13 },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",

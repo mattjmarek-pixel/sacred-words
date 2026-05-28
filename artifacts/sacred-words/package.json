@@ -58,10 +58,12 @@
   "dependencies": {
     "@expo-google-fonts/lato": "^0.4.1",
     "@expo-google-fonts/playfair-display": "^0.4.2",
+    "@react-native-community/netinfo": "^11.4.1",
     "expo-auth-session": "~7.0.11",
     "expo-clipboard": "^8.0.8",
     "expo-crypto": "~15.0.9",
     "expo-media-library": "^18.2.1",
+    "expo-notifications": "^0.32.17",
     "expo-secure-store": "~15.0.8",
     "expo-sharing": "~14.0.8",
     "react-native-purchases": "^10.1.0",
