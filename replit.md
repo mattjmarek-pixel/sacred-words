@@ -47,19 +47,23 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 - **Workflow**: `artifacts/api-server: API Server`
 - **Routes:**
   - `GET  /api/healthz` — health check
-  - `POST /api/prayers/generate` — AI prayer generation via Anthropic claude-sonnet-4-6
+  - `POST /api/prayers/generate` — AI prayer generation via Anthropic claude-sonnet-4-6. Requires Replit OIDC auth (401 if unauthenticated). Enforces server-side free-tier limit (`FREE_LIMIT = 3`/month); returns `403` with `{ error: "free_limit_reached", count, limit }` when exceeded.
+  - `GET  /api/prayers/usage` — current usage status for the authenticated user. Returns `{ generationsThisMonth, limit, month, isPremium }`.
+  - `POST /api/prayers/submit` — submit a prayer to the community collection. Requires auth (401 if unauthenticated); validates `title`/`tradition`/`intention`/`text`.
   - `GET  /api/prayers/browse` — community prayers (filterable by `?tradition=`)
+  - `POST /api/prayers/browse` — legacy community-submission route, kept for back-compat; prefer `/api/prayers/submit`
 
 ### OpenAPI / Codegen
 - **Spec**: `lib/api-spec/openapi.yaml`
 - **Generated client**: `lib/api-client-react/src/generated/`
-- **Generated hooks**: `useGeneratePrayer` (mutation), `useGetBrowsePrayers` (query)
+- **Generated hooks**: `useGeneratePrayer` (mutation), `useGetBrowsePrayers` (query), `useGetPrayerUsage` (query), `useSubmitPrayer` (mutation)
 - **Regenerate**: `pnpm --filter @workspace/api-spec run codegen`
 
 ## Database
 
 - **Schema**: `lib/db/src/schema/`
-  - `communityPrayersTable` — id, title, tradition, intention, text, createdAt
+  - `communityPrayersTable` — id, title, tradition, intention, text, isUserSubmitted, createdAt
+  - `prayerUsageTable` — server-side per-user, per-month generation counts; backs the free-tier limit (no separate `usersTable` — identity comes from Replit OIDC `req.user.id`)
 - **Push**: `pnpm --filter @workspace/db run push`
 - Seeded with 12 multi-faith community prayers on first API server start
 
@@ -67,7 +71,7 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 - **Provider**: RevenueCat (not yet connected — run seed script once account is created)
 - **Entitlement**: `premium`
-- **Free tier**: 3 AI prayer generations per month (tracked client-side in AsyncStorage)
+- **Free tier**: 3 AI prayer generations per month, enforced server-side via `prayerUsageTable` (not just tracked client-side)
 - **Premium**: Unlimited generations + community submission
 - **Seed script**: `pnpm --filter @workspace/scripts exec tsx src/seedRevenueCat.ts`
 - **Env vars needed** (after seeding): `EXPO_PUBLIC_REVENUECAT_TEST_API_KEY`, `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`, `REVENUECAT_PROJECT_ID`
