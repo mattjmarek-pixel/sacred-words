@@ -532,9 +532,42 @@ components:
         prayers:
           type: array
           items:
-            $ref: "#/components/schemas/CommunityPrayer"
+            $ref: "#/components/schemas/CommunityPrayerBrowseItem"
       required:
         - prayers
+
+    CommunityPrayerBrowseItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        tradition:
+          type: string
+        intention:
+          type: string
+        text:
+          type: string
+        isUserSubmitted:
+          type: boolean
+        status:
+          type: string
+          enum: [approved, pending, rejected]
+        hasSubmitter:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - title
+        - tradition
+        - intention
+        - text
+        - isUserSubmitted
+        - status
+        - hasSubmitter
+        - createdAt
 
     SubmitCommunityPrayerRequest:
       type: object

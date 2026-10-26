@@ -12,6 +12,8 @@ export * from "./authUserEnvelope";
 export * from "./beginBrowserLoginParams";
 export * from "./communityPrayer";
 export * from "./communityPrayerBlockResult";
+export * from "./communityPrayerBrowseItem";
+export * from "./communityPrayerBrowseItemStatus";
 export * from "./communityPrayerList";
 export * from "./communityPrayerReportResult";
 export * from "./communityPrayerReportResultStatus";

@@ -135,7 +135,7 @@ const REPORT_REASONS = [
   "Other",
 ] as const;
 
-function toCommunityPrayerResponse(prayer: CommunityPrayer) {
+function toCommunityPrayerBrowseResponse(prayer: CommunityPrayer) {
   return {
     id: prayer.id,
     title: prayer.title,
@@ -144,9 +144,16 @@ function toCommunityPrayerResponse(prayer: CommunityPrayer) {
     text: prayer.text,
     isUserSubmitted: prayer.isUserSubmitted,
     status: prayer.status,
-    reportCount: prayer.reportCount,
     hasSubmitter: prayer.submittedBy !== null,
     createdAt: prayer.createdAt.toISOString(),
+  };
+}
+
+function toCommunityPrayerResponse(prayer: CommunityPrayer) {
+  const browseResponse = toCommunityPrayerBrowseResponse(prayer);
+  return {
+    ...browseResponse,
+    reportCount: prayer.reportCount,
   };
 }
 
@@ -787,6 +794,19 @@ router.get("/prayers/browse", async (req: Request, res: Response) => {
             ),
         ),
       );
+      conditions.push(
+        notExists(
+          db
+            .select({ prayerId: prayerReportsTable.prayerId })
+            .from(prayerReportsTable)
+            .where(
+              and(
+                eq(prayerReportsTable.reporterUserId, req.user.id),
+                eq(prayerReportsTable.prayerId, communityPrayersTable.id),
+              ),
+            ),
+        ),
+      );
     }
 
     const prayers = await db
@@ -795,7 +815,7 @@ router.get("/prayers/browse", async (req: Request, res: Response) => {
       .where(and(...conditions));
 
     res.json({
-      prayers: prayers.map(toCommunityPrayerResponse),
+      prayers: prayers.map(toCommunityPrayerBrowseResponse),
     });
   } catch {
     res.json({
@@ -804,7 +824,6 @@ router.get("/prayers/browse", async (req: Request, res: Response) => {
         id: i + 1,
         isUserSubmitted: false,
         status: "approved" as const,
-        reportCount: 0,
         hasSubmitter: false,
         createdAt: new Date().toISOString(),
       })),

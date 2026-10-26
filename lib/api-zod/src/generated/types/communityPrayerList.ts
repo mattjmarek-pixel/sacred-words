@@ -5,8 +5,8 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { CommunityPrayer } from "./communityPrayer";
+import type { CommunityPrayerBrowseItem } from "./communityPrayerBrowseItem";
 
 export interface CommunityPrayerList {
-  prayers: CommunityPrayer[];
+  prayers: CommunityPrayerBrowseItem[];
 }

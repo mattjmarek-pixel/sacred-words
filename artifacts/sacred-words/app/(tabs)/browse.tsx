@@ -31,13 +31,13 @@ import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useShareAsImage } from "@/hooks/useShareAsImage";
 import { ShareOptionsModal } from "@/components/ShareOptionsModal";
 import PrayerShareCard from "@/components/PrayerShareCard";
-import type { CommunityPrayer } from "@workspace/api-client-react";
+import type { CommunityPrayerBrowseItem } from "@workspace/api-client-react";
 
 const TRADITION_FILTERS = ["All", "Universal", "Christian", "Catholic", "Jewish", "Islamic", "Buddhist", "Hindu", "Indigenous", "Secular"];
 const REPORT_REASONS = ["Offensive", "Spam", "Disrespectful to a faith", "Other"] as const;
 
 interface CommunityPrayerCardProps {
-  prayer: CommunityPrayer;
+  prayer: CommunityPrayerBrowseItem;
   onPress: () => void;
 }
 
@@ -101,7 +101,7 @@ export default function BrowseScreen() {
   const queryClient = useQueryClient();
   const { user, isAuthenticated, login } = useAuth();
   const [selectedTradition, setSelectedTradition] = useState("All");
-  const [selectedPrayer, setSelectedPrayer] = useState<CommunityPrayer | null>(null);
+  const [selectedPrayer, setSelectedPrayer] = useState<CommunityPrayerBrowseItem | null>(null);
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [hiddenPrayerIds, setHiddenPrayerIds] = useState<number[]>([]);
   const [showReportReasons, setShowReportReasons] = useState(false);

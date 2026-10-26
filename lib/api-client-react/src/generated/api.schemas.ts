@@ -61,8 +61,29 @@ export interface CommunityPrayer {
   createdAt: string;
 }
 
+export type CommunityPrayerBrowseItemStatus =
+  (typeof CommunityPrayerBrowseItemStatus)[keyof typeof CommunityPrayerBrowseItemStatus];
+
+export const CommunityPrayerBrowseItemStatus = {
+  approved: "approved",
+  pending: "pending",
+  rejected: "rejected",
+} as const;
+
+export interface CommunityPrayerBrowseItem {
+  id: number;
+  title: string;
+  tradition: string;
+  intention: string;
+  text: string;
+  isUserSubmitted: boolean;
+  status: CommunityPrayerBrowseItemStatus;
+  hasSubmitter: boolean;
+  createdAt: string;
+}
+
 export interface CommunityPrayerList {
-  prayers: CommunityPrayer[];
+  prayers: CommunityPrayerBrowseItem[];
 }
 
 export interface SubmitCommunityPrayerRequest {

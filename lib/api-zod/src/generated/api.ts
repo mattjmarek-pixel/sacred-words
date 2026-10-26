@@ -70,7 +70,6 @@ export const GetBrowsePrayersResponse = zod.object({
       text: zod.string(),
       isUserSubmitted: zod.boolean(),
       status: zod.enum(["approved", "pending", "rejected"]),
-      reportCount: zod.number(),
       hasSubmitter: zod.boolean(),
       createdAt: zod.string(),
     }),
