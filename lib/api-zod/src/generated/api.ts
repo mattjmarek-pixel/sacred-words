@@ -40,11 +40,15 @@ export const SubmitPrayerHeader = zod.object({
     .describe("Opaque session token — `Bearer <sid>`."),
 });
 
+export const submitPrayerBodyTitleMax = 80;
+
+export const submitPrayerBodyTextMax = 2000;
+
 export const SubmitPrayerBody = zod.object({
-  title: zod.string().min(1),
+  title: zod.string().min(1).max(submitPrayerBodyTitleMax),
   tradition: zod.string().min(1),
   intention: zod.string().min(1),
-  text: zod.string().min(1),
+  text: zod.string().min(1).max(submitPrayerBodyTextMax),
 });
 
 /**
@@ -65,6 +69,9 @@ export const GetBrowsePrayersResponse = zod.object({
       intention: zod.string(),
       text: zod.string(),
       isUserSubmitted: zod.boolean(),
+      status: zod.enum(["approved", "pending", "rejected"]),
+      reportCount: zod.number(),
+      hasSubmitter: zod.boolean(),
       createdAt: zod.string(),
     }),
   ),
@@ -80,11 +87,57 @@ export const SubmitCommunityPrayerHeader = zod.object({
     .describe("Opaque session token — `Bearer <sid>`."),
 });
 
+export const submitCommunityPrayerBodyTitleMax = 80;
+
+export const submitCommunityPrayerBodyTextMax = 2000;
+
 export const SubmitCommunityPrayerBody = zod.object({
-  title: zod.string().min(1),
+  title: zod.string().min(1).max(submitCommunityPrayerBodyTitleMax),
   tradition: zod.string().min(1),
   intention: zod.string().min(1),
-  text: zod.string().min(1),
+  text: zod.string().min(1).max(submitCommunityPrayerBodyTextMax),
+});
+
+/**
+ * @summary Report a community prayer
+ */
+export const ReportCommunityPrayerParams = zod.object({
+  prayerId: zod.coerce.number(),
+});
+
+export const ReportCommunityPrayerHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const ReportCommunityPrayerBody = zod.object({
+  reason: zod.enum(["Offensive", "Spam", "Disrespectful to a faith", "Other"]),
+});
+
+export const ReportCommunityPrayerResponse = zod.object({
+  alreadyReported: zod.boolean(),
+  reportCount: zod.number(),
+  status: zod.enum(["approved", "pending", "rejected"]),
+});
+
+/**
+ * @summary Block the author of a community prayer
+ */
+export const BlockCommunityPrayerAuthorParams = zod.object({
+  prayerId: zod.coerce.number(),
+});
+
+export const BlockCommunityPrayerAuthorHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const BlockCommunityPrayerAuthorResponse = zod.object({
+  blocked: zod.boolean(),
 });
 
 /**

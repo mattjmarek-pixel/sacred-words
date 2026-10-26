@@ -92,6 +92,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Premium subscription required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          description: Submission limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
 
   /prayers/browse:
     get:
@@ -139,6 +151,100 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "401":
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Premium subscription required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          description: Submission limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /prayers/{prayerId}/report:
+    post:
+      operationId: reportCommunityPrayer
+      tags: [prayers]
+      summary: Report a community prayer
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - name: prayerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportCommunityPrayerRequest"
+      responses:
+        "200":
+          description: Prayer report recorded, or the existing report was returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityPrayerReportResult"
+        "400":
+          description: Invalid prayer ID or report reason
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Prayer not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /prayers/{prayerId}/block-author:
+    post:
+      operationId: blockCommunityPrayerAuthor
+      tags: [prayers]
+      summary: Block the author of a community prayer
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - name: prayerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Author blocked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityPrayerBlockResult"
+        "400":
+          description: Prayer has no submitter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Prayer not found
           content:
             application/json:
               schema:
@@ -399,6 +505,13 @@ components:
           type: string
         isUserSubmitted:
           type: boolean
+        status:
+          type: string
+          enum: [approved, pending, rejected]
+        reportCount:
+          type: integer
+        hasSubmitter:
+          type: boolean
         createdAt:
           type: string
       required:
@@ -408,6 +521,9 @@ components:
         - intention
         - text
         - isUserSubmitted
+        - status
+        - reportCount
+        - hasSubmitter
         - createdAt
 
     CommunityPrayerList:
@@ -426,6 +542,7 @@ components:
         title:
           type: string
           minLength: 1
+          maxLength: 80
         tradition:
           type: string
           minLength: 1
@@ -435,11 +552,39 @@ components:
         text:
           type: string
           minLength: 1
+          maxLength: 2000
       required:
         - title
         - tradition
         - intention
         - text
+
+    ReportCommunityPrayerRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          enum: [Offensive, Spam, Disrespectful to a faith, Other]
+      required: [reason]
+
+    CommunityPrayerReportResult:
+      type: object
+      properties:
+        alreadyReported:
+          type: boolean
+        reportCount:
+          type: integer
+        status:
+          type: string
+          enum: [approved, pending, rejected]
+      required: [alreadyReported, reportCount, status]
+
+    CommunityPrayerBlockResult:
+      type: object
+      properties:
+        blocked:
+          type: boolean
+      required: [blocked]
 
     AuthUser:
       type: object

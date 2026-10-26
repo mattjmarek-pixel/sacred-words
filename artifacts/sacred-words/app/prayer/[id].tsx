@@ -20,6 +20,7 @@ import { getPrayerById, deletePrayer } from "@/hooks/useDatabase";
 import type { SavedPrayer } from "@/hooks/useDatabase";
 import { ShareOptionsModal } from "@/components/ShareOptionsModal";
 import { PaywallScreen } from "@/components/PaywallScreen";
+import { ShareToCommunityModal } from "@/components/ShareToCommunityModal";
 import PrayerShareCard from "@/components/PrayerShareCard";
 import { useShareAsImage } from "@/hooks/useShareAsImage";
 import { useAuth } from "@/lib/auth";
@@ -27,18 +28,7 @@ import { useSubscription } from "@/lib/revenuecat";
 import {
   getGetPrayerUsageQueryKey,
   useGetPrayerUsage,
-  useSubmitPrayer,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-
-function isPremiumRequiredError(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) return false;
-  const apiError = error as { status?: unknown; data?: unknown };
-  if (apiError.status !== 403 || typeof apiError.data !== "object" || apiError.data === null) {
-    return false;
-  }
-  return (apiError.data as { error?: unknown }).error === "premium_required";
-}
 
 function formatDate(dateStr: string): string {
   try {
@@ -62,6 +52,7 @@ export default function PrayerDetailScreen() {
   const { toast, showToast } = useToast();
   const [prayer, setPrayer] = useState<SavedPrayer | null>(null);
   const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [communityModalVisible, setCommunityModalVisible] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
 
   const { cardRef, isCapturing, shareAsImage, saveToLibrary } = useShareAsImage();
@@ -75,8 +66,6 @@ export default function PrayerDetailScreen() {
     },
   });
   const effectivePremium = isPremium || (usageQuery.data?.isPremium ?? false);
-  const submitMutation = useSubmitPrayer();
-  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (id) {
@@ -124,31 +113,13 @@ export default function PrayerDetailScreen() {
     setShareModalVisible(false);
   };
 
-  const handleSubmitToCommunity = async () => {
+  const handleOpenCommunity = () => {
     if (!prayer || !isAuthenticated) return;
     if (!effectivePremium) {
       setPaywallVisible(true);
       return;
     }
-
-    try {
-      await submitMutation.mutateAsync({
-        data: {
-          title: prayer.title,
-          tradition: prayer.tradition,
-          intention: prayer.intention,
-          text: prayer.text,
-        },
-      });
-      showToast("Your prayer is now in the community collection");
-      void queryClient.invalidateQueries({ queryKey: ["getBrowsePrayers"] });
-    } catch (error) {
-      if (isPremiumRequiredError(error)) {
-        setPaywallVisible(true);
-        return;
-      }
-      showToast("Could not submit prayer. Please try again.", "error");
-    }
+    setCommunityModalVisible(true);
   };
 
   const handleSaveToLibrary = async () => {
@@ -209,6 +180,33 @@ export default function PrayerDetailScreen() {
         onSaveToLibrary={handleSaveToLibrary}
         onShareAsText={handleShareText}
         isCapturing={isCapturing}
+      />
+
+      <ShareToCommunityModal
+        visible={communityModalVisible}
+        onClose={() => setCommunityModalVisible(false)}
+        onPremiumRequired={() => {
+          setCommunityModalVisible(false);
+          setPaywallVisible(true);
+        }}
+        onSuccess={(status) => {
+          setCommunityModalVisible(false);
+          showToast(
+            status === "approved"
+              ? "Your prayer is now in the community collection"
+              : status === "pending"
+                ? "Thanks! Your prayer will appear once it’s reviewed"
+                : "This prayer could not be approved for the community.",
+          );
+        }}
+        onLimitReached={() => {
+          setCommunityModalVisible(false);
+          showToast("You’ve reached today’s submission limit.", "error");
+        }}
+        initialTitle={prayer.title}
+        initialTradition={prayer.tradition}
+        initialIntention={prayer.intention || "Reflection"}
+        prayerText={prayer.text}
       />
 
       {/* Header */}
@@ -283,15 +281,14 @@ export default function PrayerDetailScreen() {
 
         {isAuthenticated && (
           <Pressable
-            onPress={handleSubmitToCommunity}
-            disabled={submitMutation.isPending}
+            onPress={handleOpenCommunity}
             accessibilityRole="button"
             accessibilityLabel="Submit prayer to community"
-            style={[styles.actionBtn, { backgroundColor: colors.parchment, borderColor: colors.gold, borderWidth: 1.5, opacity: submitMutation.isPending ? 0.6 : 1 }]}
+            style={[styles.actionBtn, { backgroundColor: colors.parchment, borderColor: colors.gold, borderWidth: 1.5 }]}
           >
             <Feather name="users" size={18} color={colors.gold} />
             <Text style={[styles.actionBtnText, { color: colors.gold, fontFamily: "Lato_700Bold" }]}>
-              {submitMutation.isPending ? "Submitting…" : "Community"}
+              Community
             </Text>
           </Pressable>
         )}

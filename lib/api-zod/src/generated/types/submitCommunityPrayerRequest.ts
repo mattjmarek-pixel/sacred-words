@@ -7,12 +7,18 @@
  */
 
 export interface SubmitCommunityPrayerRequest {
-  /** @minLength 1 */
+  /**
+   * @minLength 1
+   * @maxLength 80
+   */
   title: string;
   /** @minLength 1 */
   tradition: string;
   /** @minLength 1 */
   intention: string;
-  /** @minLength 1 */
+  /**
+   * @minLength 1
+   * @maxLength 2000
+   */
   text: string;
 }

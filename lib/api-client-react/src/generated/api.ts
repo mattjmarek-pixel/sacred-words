@@ -20,7 +20,9 @@ import type {
   AuthUserEnvelope,
   BeginBrowserLoginParams,
   CommunityPrayer,
+  CommunityPrayerBlockResult,
   CommunityPrayerList,
+  CommunityPrayerReportResult,
   ErrorEnvelope,
   FreeTierLimitReached,
   GeneratePrayerRequest,
@@ -33,6 +35,7 @@ import type {
   MobileTokenExchangeSuccess,
   PrayerUsage,
   PremiumTraditionLocked,
+  ReportCommunityPrayerRequest,
   SubmitCommunityPrayerRequest,
 } from "./api.schemas";
 
@@ -477,6 +480,184 @@ export const useSubmitCommunityPrayer = <
   TContext
 > => {
   return useMutation(getSubmitCommunityPrayerMutationOptions(options));
+};
+
+/**
+ * @summary Report a community prayer
+ */
+export const getReportCommunityPrayerUrl = (prayerId: number) => {
+  return `/api/prayers/${prayerId}/report`;
+};
+
+export const reportCommunityPrayer = async (
+  prayerId: number,
+  reportCommunityPrayerRequest: ReportCommunityPrayerRequest,
+  options?: RequestInit,
+): Promise<CommunityPrayerReportResult> => {
+  return customFetch<CommunityPrayerReportResult>(
+    getReportCommunityPrayerUrl(prayerId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(reportCommunityPrayerRequest),
+    },
+  );
+};
+
+export const getReportCommunityPrayerMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportCommunityPrayer>>,
+    TError,
+    { prayerId: number; data: BodyType<ReportCommunityPrayerRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reportCommunityPrayer>>,
+  TError,
+  { prayerId: number; data: BodyType<ReportCommunityPrayerRequest> },
+  TContext
+> => {
+  const mutationKey = ["reportCommunityPrayer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reportCommunityPrayer>>,
+    { prayerId: number; data: BodyType<ReportCommunityPrayerRequest> }
+  > = (props) => {
+    const { prayerId, data } = props ?? {};
+
+    return reportCommunityPrayer(prayerId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReportCommunityPrayerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reportCommunityPrayer>>
+>;
+export type ReportCommunityPrayerMutationBody =
+  BodyType<ReportCommunityPrayerRequest>;
+export type ReportCommunityPrayerMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Report a community prayer
+ */
+export const useReportCommunityPrayer = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportCommunityPrayer>>,
+    TError,
+    { prayerId: number; data: BodyType<ReportCommunityPrayerRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof reportCommunityPrayer>>,
+  TError,
+  { prayerId: number; data: BodyType<ReportCommunityPrayerRequest> },
+  TContext
+> => {
+  return useMutation(getReportCommunityPrayerMutationOptions(options));
+};
+
+/**
+ * @summary Block the author of a community prayer
+ */
+export const getBlockCommunityPrayerAuthorUrl = (prayerId: number) => {
+  return `/api/prayers/${prayerId}/block-author`;
+};
+
+export const blockCommunityPrayerAuthor = async (
+  prayerId: number,
+  options?: RequestInit,
+): Promise<CommunityPrayerBlockResult> => {
+  return customFetch<CommunityPrayerBlockResult>(
+    getBlockCommunityPrayerAuthorUrl(prayerId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getBlockCommunityPrayerAuthorMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof blockCommunityPrayerAuthor>>,
+    TError,
+    { prayerId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof blockCommunityPrayerAuthor>>,
+  TError,
+  { prayerId: number },
+  TContext
+> => {
+  const mutationKey = ["blockCommunityPrayerAuthor"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof blockCommunityPrayerAuthor>>,
+    { prayerId: number }
+  > = (props) => {
+    const { prayerId } = props ?? {};
+
+    return blockCommunityPrayerAuthor(prayerId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BlockCommunityPrayerAuthorMutationResult = NonNullable<
+  Awaited<ReturnType<typeof blockCommunityPrayerAuthor>>
+>;
+
+export type BlockCommunityPrayerAuthorMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Block the author of a community prayer
+ */
+export const useBlockCommunityPrayerAuthor = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof blockCommunityPrayerAuthor>>,
+    TError,
+    { prayerId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof blockCommunityPrayerAuthor>>,
+  TError,
+  { prayerId: number },
+  TContext
+> => {
+  return useMutation(getBlockCommunityPrayerAuthorMutationOptions(options));
 };
 
 /**

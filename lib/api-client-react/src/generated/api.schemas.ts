@@ -39,6 +39,15 @@ export interface PrayerUsage {
   isPremium: boolean;
 }
 
+export type CommunityPrayerStatus =
+  (typeof CommunityPrayerStatus)[keyof typeof CommunityPrayerStatus];
+
+export const CommunityPrayerStatus = {
+  approved: "approved",
+  pending: "pending",
+  rejected: "rejected",
+} as const;
+
 export interface CommunityPrayer {
   id: number;
   title: string;
@@ -46,6 +55,9 @@ export interface CommunityPrayer {
   intention: string;
   text: string;
   isUserSubmitted: boolean;
+  status: CommunityPrayerStatus;
+  reportCount: number;
+  hasSubmitter: boolean;
   createdAt: string;
 }
 
@@ -54,14 +66,53 @@ export interface CommunityPrayerList {
 }
 
 export interface SubmitCommunityPrayerRequest {
-  /** @minLength 1 */
+  /**
+   * @minLength 1
+   * @maxLength 80
+   */
   title: string;
   /** @minLength 1 */
   tradition: string;
   /** @minLength 1 */
   intention: string;
-  /** @minLength 1 */
+  /**
+   * @minLength 1
+   * @maxLength 2000
+   */
   text: string;
+}
+
+export type ReportCommunityPrayerRequestReason =
+  (typeof ReportCommunityPrayerRequestReason)[keyof typeof ReportCommunityPrayerRequestReason];
+
+export const ReportCommunityPrayerRequestReason = {
+  Offensive: "Offensive",
+  Spam: "Spam",
+  Disrespectful_to_a_faith: "Disrespectful to a faith",
+  Other: "Other",
+} as const;
+
+export interface ReportCommunityPrayerRequest {
+  reason: ReportCommunityPrayerRequestReason;
+}
+
+export type CommunityPrayerReportResultStatus =
+  (typeof CommunityPrayerReportResultStatus)[keyof typeof CommunityPrayerReportResultStatus];
+
+export const CommunityPrayerReportResultStatus = {
+  approved: "approved",
+  pending: "pending",
+  rejected: "rejected",
+} as const;
+
+export interface CommunityPrayerReportResult {
+  alreadyReported: boolean;
+  reportCount: number;
+  status: CommunityPrayerReportResultStatus;
+}
+
+export interface CommunityPrayerBlockResult {
+  blocked: boolean;
 }
 
 export interface AuthUser {

@@ -19,7 +19,14 @@ import { LoadingCards } from "@/components/LoadingPrayer";
 import { Toast } from "@/components/Toast";
 import { useToast } from "@/hooks/useToast";
 import { savePrayer } from "@/hooks/useDatabase";
-import { useGetBrowsePrayers } from "@workspace/api-client-react";
+import {
+  getGetBrowsePrayersQueryKey,
+  useBlockCommunityPrayerAuthor,
+  useGetBrowsePrayers,
+  useReportCommunityPrayer,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useShareAsImage } from "@/hooks/useShareAsImage";
 import { ShareOptionsModal } from "@/components/ShareOptionsModal";
@@ -27,6 +34,7 @@ import PrayerShareCard from "@/components/PrayerShareCard";
 import type { CommunityPrayer } from "@workspace/api-client-react";
 
 const TRADITION_FILTERS = ["All", "Universal", "Christian", "Catholic", "Jewish", "Islamic", "Buddhist", "Hindu", "Indigenous", "Secular"];
+const REPORT_REASONS = ["Offensive", "Spam", "Disrespectful to a faith", "Other"] as const;
 
 interface CommunityPrayerCardProps {
   prayer: CommunityPrayer;
@@ -90,19 +98,78 @@ export default function BrowseScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { toast, showToast } = useToast();
+  const queryClient = useQueryClient();
+  const { user, isAuthenticated, login } = useAuth();
   const [selectedTradition, setSelectedTradition] = useState("All");
   const [selectedPrayer, setSelectedPrayer] = useState<CommunityPrayer | null>(null);
   const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [hiddenPrayerIds, setHiddenPrayerIds] = useState<number[]>([]);
+  const [showReportReasons, setShowReportReasons] = useState(false);
+  const [confirmBlock, setConfirmBlock] = useState(false);
   const { isConnected } = useNetworkStatus();
   const { cardRef, isCapturing, shareAsImage, saveToLibrary } = useShareAsImage();
   const { prayerId } = useLocalSearchParams<{ prayerId?: string }>();
 
   const { data, isLoading, isError, refetch } = useGetBrowsePrayers(
     { tradition: selectedTradition },
-    { query: { queryKey: ["browse-prayers", selectedTradition] } }
+    { query: { queryKey: getGetBrowsePrayersQueryKey({ tradition: selectedTradition }) } }
   );
 
-  const prayers = data?.prayers ?? [];
+  const prayers = (data?.prayers ?? []).filter((prayer) => !hiddenPrayerIds.includes(prayer.id));
+  const reportMutation = useReportCommunityPrayer();
+  const blockMutation = useBlockCommunityPrayerAuthor();
+
+  useEffect(() => {
+    setHiddenPrayerIds([]);
+  }, [user?.id]);
+
+  const requireSignIn = (action: "report" | "block") => {
+    if (isAuthenticated) return true;
+    showToast(`Sign in to ${action} a community prayer`, "error");
+    login();
+    return false;
+  };
+
+  const hidePrayerAndRefresh = (id: number) => {
+    setHiddenPrayerIds((current) => current.includes(id) ? current : [...current, id]);
+    setSelectedPrayer(null);
+    setShowReportReasons(false);
+    setConfirmBlock(false);
+    void queryClient.invalidateQueries({ queryKey: getGetBrowsePrayersQueryKey() });
+  };
+
+  const closePrayerModal = () => {
+    setSelectedPrayer(null);
+    setShowReportReasons(false);
+    setConfirmBlock(false);
+  };
+
+  const handleReportPrayer = async (reason: (typeof REPORT_REASONS)[number]) => {
+    if (!selectedPrayer || !requireSignIn("report")) return;
+    try {
+      await reportMutation.mutateAsync({
+        prayerId: selectedPrayer.id,
+        data: { reason },
+      });
+      hidePrayerAndRefresh(selectedPrayer.id);
+      showToast("Thanks for your report. This prayer is hidden from your feed.");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      showToast("Could not report prayer. Please try again.", "error");
+    }
+  };
+
+  const handleBlockAuthor = async () => {
+    if (!selectedPrayer || !requireSignIn("block")) return;
+    try {
+      await blockMutation.mutateAsync({ prayerId: selectedPrayer.id });
+      hidePrayerAndRefresh(selectedPrayer.id);
+      showToast("This author’s prayers will no longer appear in your feed.");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      showToast("Could not block author. Please try again.", "error");
+    }
+  };
 
   // When arriving via notification deep-link, auto-open the matching prayer
   useEffect(() => {
@@ -279,7 +346,7 @@ export default function BrowseScreen() {
         visible={!!selectedPrayer}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => setSelectedPrayer(null)}
+        onRequestClose={closePrayerModal}
       >
         <View style={[styles.modal, { backgroundColor: colors.cream }]}>
           {/* Drag handle */}
@@ -288,7 +355,7 @@ export default function BrowseScreen() {
           </View>
 
           <Pressable
-            onPress={() => setSelectedPrayer(null)}
+            onPress={closePrayerModal}
             accessibilityRole="button"
             accessibilityLabel="Close"
             style={styles.closeBtn}
@@ -298,7 +365,7 @@ export default function BrowseScreen() {
 
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={[styles.modalScroll, { paddingBottom: modalBottom + 120 }]}
+            contentContainerStyle={[styles.modalScroll, { paddingBottom: modalBottom + 220 }]}
           >
             <View style={styles.modalBadges}>
               <View style={[styles.badge, { backgroundColor: colors.sageLight }]}>
@@ -329,22 +396,109 @@ export default function BrowseScreen() {
           </ScrollView>
 
           <View style={[styles.modalActions, { paddingBottom: modalBottom + 16, borderTopColor: colors.border, backgroundColor: colors.cream }]}>
-            <Pressable
-              onPress={() => setShareModalVisible(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Share this prayer"
-              style={[styles.modalBtn, { backgroundColor: colors.sage }]}
-            >
-              <Text style={[styles.modalBtnText, { fontFamily: "Lato_700Bold" }]}>Share</Text>
-            </Pressable>
-            <Pressable
-              onPress={handleSavePrayer}
-              accessibilityRole="button"
-              accessibilityLabel="Save to my library"
-              style={[styles.modalBtn, { backgroundColor: colors.gold }]}
-            >
-              <Text style={[styles.modalBtnText, { fontFamily: "Lato_700Bold" }]}>Save to My Library</Text>
-            </Pressable>
+            {showReportReasons && (
+              <View style={[styles.safetyPanel, { backgroundColor: colors.parchment, borderColor: colors.border }]}>
+                <Text style={[styles.safetyPanelTitle, { color: colors.warmBrown, fontFamily: "Lato_700Bold" }]}>
+                  Why are you reporting this prayer?
+                </Text>
+                <View style={styles.reasonOptions}>
+                  {REPORT_REASONS.map((reason) => (
+                    <Pressable
+                      key={reason}
+                      onPress={() => handleReportPrayer(reason)}
+                      disabled={reportMutation.isPending}
+                      accessibilityRole="button"
+                      style={[styles.reasonOption, { borderColor: colors.border, opacity: reportMutation.isPending ? 0.6 : 1 }]}
+                    >
+                      <Text style={[styles.safetyActionText, { color: colors.ink, fontFamily: "Lato_400Regular" }]}>
+                        {reportMutation.isPending ? "Sending…" : reason}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {confirmBlock && (
+              <View style={[styles.safetyPanel, { backgroundColor: colors.parchment, borderColor: colors.border }]}>
+                <Text style={[styles.safetyPanelTitle, { color: colors.warmBrown, fontFamily: "Lato_700Bold" }]}>
+                  Block this author? Their prayers will no longer appear in your Browse feed.
+                </Text>
+                <View style={styles.safetyActions}>
+                  <Pressable
+                    onPress={() => setConfirmBlock(false)}
+                    accessibilityRole="button"
+                    style={[styles.safetyBtn, { borderColor: colors.border }]}
+                  >
+                    <Text style={[styles.safetyActionText, { color: colors.warmBrown, fontFamily: "Lato_700Bold" }]}>
+                      Cancel
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleBlockAuthor}
+                    disabled={blockMutation.isPending}
+                    accessibilityRole="button"
+                    style={[styles.safetyBtn, { backgroundColor: colors.destructive, borderColor: colors.destructive }]}
+                  >
+                    <Text style={[styles.safetyActionText, { color: "#fff", fontFamily: "Lato_700Bold" }]}>
+                      {blockMutation.isPending ? "Blocking…" : "Block author"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.modalMainActions}>
+              <Pressable
+                onPress={() => setShareModalVisible(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Share this prayer"
+                style={[styles.modalBtn, { backgroundColor: colors.sage }]}
+              >
+                <Text style={[styles.modalBtnText, { fontFamily: "Lato_700Bold" }]}>Share</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleSavePrayer}
+                accessibilityRole="button"
+                accessibilityLabel="Save to my library"
+                style={[styles.modalBtn, { backgroundColor: colors.gold }]}
+              >
+                <Text style={[styles.modalBtnText, { fontFamily: "Lato_700Bold" }]}>Save to My Library</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.safetyActions}>
+              <Pressable
+                onPress={() => {
+                  if (!requireSignIn("report")) return;
+                  setConfirmBlock(false);
+                  setShowReportReasons((visible) => !visible);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Report this prayer"
+                style={[styles.safetyBtn, { borderColor: colors.border }]}
+              >
+                <Text style={[styles.safetyActionText, { color: colors.warmBrown, fontFamily: "Lato_700Bold" }]}>
+                  Report
+                </Text>
+              </Pressable>
+              {selectedPrayer?.hasSubmitter && (
+                <Pressable
+                  onPress={() => {
+                    if (!requireSignIn("block")) return;
+                    setShowReportReasons(false);
+                    setConfirmBlock((visible) => !visible);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Block this prayer's author"
+                  style={[styles.safetyBtn, { borderColor: colors.border }]}
+                >
+                  <Text style={[styles.safetyActionText, { color: colors.warmBrown, fontFamily: "Lato_700Bold" }]}>
+                    Block author
+                  </Text>
+                </Pressable>
+              )}
+            </View>
           </View>
         </View>
       </Modal>
@@ -416,11 +570,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    flexDirection: "row",
+    flexDirection: "column",
     padding: 20,
-    gap: 12,
+    gap: 10,
     borderTopWidth: 1,
   },
+  modalMainActions: { flexDirection: "row", gap: 12 },
   modalBtn: {
     flex: 1,
     height: 52,
@@ -429,4 +584,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalBtnText: { color: "#FFFFFF", fontSize: 16 },
+  safetyActions: { flexDirection: "row", gap: 10 },
+  safetyBtn: {
+    flex: 1,
+    minHeight: 42,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  safetyActionText: { fontSize: 13, textAlign: "center" },
+  safetyPanel: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 10 },
+  safetyPanelTitle: { fontSize: 13, lineHeight: 19 },
+  reasonOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  reasonOption: {
+    minHeight: 36,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderRadius: 8,
+    justifyContent: "center",
+  },
 });

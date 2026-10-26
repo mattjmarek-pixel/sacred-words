@@ -13,20 +13,35 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
-import { useSubmitCommunityPrayer } from "@workspace/api-client-react";
+import {
+  getGetBrowsePrayersQueryKey,
+  useSubmitCommunityPrayer,
+} from "@workspace/api-client-react";
+import type { CommunityPrayer } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 
 const TRADITIONS = [
-  "Universal", "Christian", "Catholic", "Jewish", "Islamic",
-  "Buddhist", "Hindu", "Indigenous", "Secular",
+  "Universal",
+  "Christian",
+  "Catholic",
+  "Jewish",
+  "Islamic",
+  "Secular",
+  "Buddhist",
+  "Hindu",
+  "Sikh",
+  "Orthodox Christian",
+  "Bahá'í",
+  "Taoist",
 ];
 
 interface ShareToCommunityModalProps {
   visible: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (status: CommunityPrayer["status"]) => void;
   onPremiumRequired: () => void;
+  onLimitReached: () => void;
   initialTitle: string;
   initialTradition: string;
   initialIntention: string;
@@ -38,6 +53,7 @@ export function ShareToCommunityModal({
   onClose,
   onSuccess,
   onPremiumRequired,
+  onLimitReached,
   initialTitle,
   initialTradition,
   initialIntention,
@@ -72,7 +88,7 @@ export function ShareToCommunityModal({
     }
 
     try {
-      await submitMutation.mutateAsync({
+      const result = await submitMutation.mutateAsync({
         data: {
           title: title.trim(),
           tradition: tradition.trim() || "Universal",
@@ -80,12 +96,16 @@ export function ShareToCommunityModal({
           text: prayerText,
         },
       });
-      queryClient.invalidateQueries({ queryKey: ["browse-prayers"] });
-      onSuccess();
+      void queryClient.invalidateQueries({ queryKey: getGetBrowsePrayersQueryKey() });
+      onSuccess(result.status);
     } catch (err: unknown) {
       const apiErr = err as { status?: number; data?: { error?: string } };
       if (apiErr?.status === 403 && apiErr.data?.error === "premium_required") {
         onPremiumRequired();
+        return;
+      }
+      if (apiErr?.status === 429 && apiErr.data?.error === "submission_limit_reached") {
+        onLimitReached();
         return;
       }
       const axiosErr = err as { response?: { status?: number } };
@@ -131,7 +151,7 @@ export function ShareToCommunityModal({
             Share to Community
           </Text>
           <Text style={[styles.subtitle, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
-            Your prayer will appear in the Browse tab for everyone to read and save.
+            Approved prayers appear in Browse. Prayers that need review stay private until reviewed.
           </Text>
 
           <View style={[styles.prayerPreview, { backgroundColor: colors.parchment, borderColor: colors.border }]}>
@@ -149,6 +169,7 @@ export function ShareToCommunityModal({
           <TextInput
             value={title}
             onChangeText={setTitle}
+            maxLength={80}
             placeholder="Give this prayer a name…"
             placeholderTextColor={colors.muted}
             style={[

@@ -308,9 +308,19 @@ export default function BuildScreen() {
           setCommunityModalVisible(false);
           setPaywallVisible(true);
         }}
-        onSuccess={() => {
+        onSuccess={(status) => {
           setCommunityModalVisible(false);
-          showToast("Your prayer is now in the community collection");
+          showToast(
+            status === "approved"
+              ? "Your prayer is now in the community collection"
+              : status === "pending"
+                ? "Thanks! Your prayer will appear once it’s reviewed"
+                : "This prayer could not be approved for the community.",
+          );
+        }}
+        onLimitReached={() => {
+          setCommunityModalVisible(false);
+          showToast("You’ve reached today’s submission limit.", "error");
         }}
         initialTitle={resolvedTitle}
         initialTradition={tradition}

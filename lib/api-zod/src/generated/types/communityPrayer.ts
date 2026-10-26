@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CommunityPrayerStatus } from "./communityPrayerStatus";
 
 export interface CommunityPrayer {
   id: number;
@@ -13,5 +14,8 @@ export interface CommunityPrayer {
   intention: string;
   text: string;
   isUserSubmitted: boolean;
+  status: CommunityPrayerStatus;
+  reportCount: number;
+  hasSubmitter: boolean;
   createdAt: string;
 }
