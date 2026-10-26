@@ -19,11 +19,26 @@ import { useToast } from "@/hooks/useToast";
 import { getPrayerById, deletePrayer } from "@/hooks/useDatabase";
 import type { SavedPrayer } from "@/hooks/useDatabase";
 import { ShareOptionsModal } from "@/components/ShareOptionsModal";
+import { PaywallScreen } from "@/components/PaywallScreen";
 import PrayerShareCard from "@/components/PrayerShareCard";
 import { useShareAsImage } from "@/hooks/useShareAsImage";
 import { useAuth } from "@/lib/auth";
-import { useSubmitPrayer } from "@workspace/api-client-react";
+import { useSubscription } from "@/lib/revenuecat";
+import {
+  getGetPrayerUsageQueryKey,
+  useGetPrayerUsage,
+  useSubmitPrayer,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+
+function isPremiumRequiredError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const apiError = error as { status?: unknown; data?: unknown };
+  if (apiError.status !== 403 || typeof apiError.data !== "object" || apiError.data === null) {
+    return false;
+  }
+  return (apiError.data as { error?: unknown }).error === "premium_required";
+}
 
 function formatDate(dateStr: string): string {
   try {
@@ -47,9 +62,19 @@ export default function PrayerDetailScreen() {
   const { toast, showToast } = useToast();
   const [prayer, setPrayer] = useState<SavedPrayer | null>(null);
   const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [paywallVisible, setPaywallVisible] = useState(false);
 
   const { cardRef, isCapturing, shareAsImage, saveToLibrary } = useShareAsImage();
   const { isAuthenticated } = useAuth();
+  const { isPremium } = useSubscription();
+  const usageQuery = useGetPrayerUsage({
+    query: {
+      queryKey: getGetPrayerUsageQueryKey(),
+      enabled: isAuthenticated,
+      staleTime: 60 * 1000,
+    },
+  });
+  const effectivePremium = isPremium || (usageQuery.data?.isPremium ?? false);
   const submitMutation = useSubmitPrayer();
   const queryClient = useQueryClient();
 
@@ -101,6 +126,11 @@ export default function PrayerDetailScreen() {
 
   const handleSubmitToCommunity = async () => {
     if (!prayer || !isAuthenticated) return;
+    if (!effectivePremium) {
+      setPaywallVisible(true);
+      return;
+    }
+
     try {
       await submitMutation.mutateAsync({
         data: {
@@ -112,7 +142,11 @@ export default function PrayerDetailScreen() {
       });
       showToast("Your prayer is now in the community collection");
       void queryClient.invalidateQueries({ queryKey: ["getBrowsePrayers"] });
-    } catch {
+    } catch (error) {
+      if (isPremiumRequiredError(error)) {
+        setPaywallVisible(true);
+        return;
+      }
       showToast("Could not submit prayer. Please try again.", "error");
     }
   };
@@ -153,6 +187,10 @@ export default function PrayerDetailScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.cream }]}>
       <Toast message={toast?.message ?? ""} type={toast?.type} visible={!!toast} />
+      <PaywallScreen
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+      />
 
       {/* Off-screen share card for image capture */}
       <View style={styles.offScreen} pointerEvents="none">

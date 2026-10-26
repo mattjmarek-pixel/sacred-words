@@ -11,15 +11,32 @@ const router = Router();
 
 const FREE_LIMIT = 3;
 
-const PREMIUM_TRADITIONS = new Set([
-  "Buddhist",
-  "Hindu",
-  "Sikh",
-  "Orthodox Christian",
-  "Bahá'í",
-  "Taoist",
-  "Indigenous & Land-Based Traditions",
-]);
+const TRADITION_ALLOWLIST = [
+  { name: "Universal", tier: "free" },
+  { name: "Christian", tier: "free" },
+  { name: "Catholic", tier: "free" },
+  { name: "Jewish", tier: "free" },
+  { name: "Islamic", tier: "free" },
+  { name: "Secular", tier: "free" },
+  { name: "Buddhist", tier: "premium" },
+  { name: "Hindu", tier: "premium" },
+  { name: "Sikh", tier: "premium" },
+  { name: "Orthodox Christian", tier: "premium" },
+  { name: "Bahá'í", tier: "premium" },
+  { name: "Taoist", tier: "premium" },
+] as const;
+
+// Re-add Indigenous & Land-Based Traditions here when it is reinstated after review.
+function resolveTradition(value: unknown): (typeof TRADITION_ALLOWLIST)[number] | null {
+  if (typeof value !== "string") return null;
+
+  const normalized = value.trim().normalize("NFC").replace(/’/g, "'").toLowerCase();
+  return (
+    TRADITION_ALLOWLIST.find(
+      ({ name }) => name.normalize("NFC").replace(/’/g, "'").toLowerCase() === normalized,
+    ) ?? null
+  );
+}
 
 function getCurrentMonth(): string {
   const now = new Date();
@@ -256,10 +273,34 @@ router.post("/prayers/generate", async (req: Request, res: Response) => {
   const userId = req.user.id;
   const month = getCurrentMonth();
 
+  const { tradition: requestedTradition, intentions, tone, context } = req.body as {
+    tradition: string;
+    intentions: string[];
+    tone: string;
+    context?: string;
+  };
+
+  if (!requestedTradition || !intentions || !tone) {
+    res.status(400).json({ error: "Missing required fields" });
+    return;
+  }
+
+  const traditionEntry = resolveTradition(requestedTradition);
+  if (!traditionEntry) {
+    res.status(400).json({ error: "invalid_tradition" });
+    return;
+  }
+  const tradition = traditionEntry.name;
+
   // Enforce limits unless premium is positively established (true).
   // false = confirmed free; null = unknown (no DB record + RC down) → treated as free.
   // Previously-confirmed premium users return true from their DB record, so they are never blocked.
   const isPremium = await checkPremiumServerSide(userId);
+
+  if (traditionEntry.tier === "premium" && isPremium !== true) {
+    res.status(403).json({ error: "premium_tradition_locked", tradition });
+    return;
+  }
 
   let slotReserved = false;
   if (isPremium !== true) {
@@ -273,25 +314,6 @@ router.post("/prayers/generate", async (req: Request, res: Response) => {
       return;
     }
     slotReserved = true;
-  }
-
-  const { tradition, intentions, tone, context } = req.body as {
-    tradition: string;
-    intentions: string[];
-    tone: string;
-    context?: string;
-  };
-
-  if (!tradition || !intentions || !tone) {
-    if (slotReserved) await releaseSlot(userId, month);
-    res.status(400).json({ error: "Missing required fields" });
-    return;
-  }
-
-  if (PREMIUM_TRADITIONS.has(tradition) && isPremium !== true) {
-    if (slotReserved) await releaseSlot(userId, month);
-    res.status(403).json({ error: "premium_tradition_locked", tradition });
-    return;
   }
 
   const intentionText = Array.isArray(intentions) ? intentions.join(", ") : intentions;
@@ -434,6 +456,12 @@ router.post("/prayers/submit", async (req: Request, res: Response) => {
     return;
   }
 
+  const isPremium = await checkPremiumServerSide(req.user.id);
+  if (isPremium !== true) {
+    res.status(403).json({ error: "premium_required" });
+    return;
+  }
+
   const { title, tradition, intention, text } = req.body as {
     title?: string;
     tradition?: string;
@@ -502,6 +530,12 @@ router.get("/prayers/browse", async (req: Request, res: Response) => {
 router.post("/prayers/browse", async (req: Request, res: Response) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Sign in to submit prayers" });
+    return;
+  }
+
+  const isPremium = await checkPremiumServerSide(req.user.id);
+  if (isPremium !== true) {
+    res.status(403).json({ error: "premium_required" });
     return;
   }
 

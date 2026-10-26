@@ -304,6 +304,10 @@ export default function BuildScreen() {
       <ShareToCommunityModal
         visible={communityModalVisible}
         onClose={() => setCommunityModalVisible(false)}
+        onPremiumRequired={() => {
+          setCommunityModalVisible(false);
+          setPaywallVisible(true);
+        }}
         onSuccess={() => {
           setCommunityModalVisible(false);
           showToast("Your prayer is now in the community collection");
@@ -529,7 +533,13 @@ export default function BuildScreen() {
               </Pressable>
 
               <Pressable
-                onPress={() => setCommunityModalVisible(true)}
+                onPress={() => {
+                  if (!effectivePremium) {
+                    setPaywallVisible(true);
+                    return;
+                  }
+                  setCommunityModalVisible(true);
+                }}
                 accessibilityRole="button"
                 accessibilityLabel="Share prayer to community"
                 style={[styles.actionBtn, styles.actionBtnOutline, { borderColor: colors.gold }]}

@@ -26,6 +26,7 @@ interface ShareToCommunityModalProps {
   visible: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onPremiumRequired: () => void;
   initialTitle: string;
   initialTradition: string;
   initialIntention: string;
@@ -36,6 +37,7 @@ export function ShareToCommunityModal({
   visible,
   onClose,
   onSuccess,
+  onPremiumRequired,
   initialTitle,
   initialTradition,
   initialIntention,
@@ -81,6 +83,11 @@ export function ShareToCommunityModal({
       queryClient.invalidateQueries({ queryKey: ["browse-prayers"] });
       onSuccess();
     } catch (err: unknown) {
+      const apiErr = err as { status?: number; data?: { error?: string } };
+      if (apiErr?.status === 403 && apiErr.data?.error === "premium_required") {
+        onPremiumRequired();
+        return;
+      }
       const axiosErr = err as { response?: { status?: number } };
       if (axiosErr?.response?.status === 401) {
         setNeedsLogin(true);
