@@ -100,9 +100,8 @@ function useSubscriptionContext() {
   });
 
   const isPremium =
-    !rcInitialized ||
-    (customerInfoQuery.data != null &&
-      customerInfoQuery.data.entitlements.active[ENTITLEMENT_PREMIUM] !== undefined);
+    customerInfoQuery.data != null &&
+    customerInfoQuery.data.entitlements.active[ENTITLEMENT_PREMIUM] !== undefined;
 
   return {
     customerInfo: customerInfoQuery.data ?? null,

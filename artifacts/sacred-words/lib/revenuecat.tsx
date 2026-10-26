@@ -22,7 +22,7 @@ type SubscriptionContextValue = {
 const stub: SubscriptionContextValue = {
   customerInfo: null,
   offerings: null,
-  isPremium: true,
+  isPremium: false,
   isRcConfigured: false,
   isLoading: false,
   purchase: () => Promise.resolve(),
