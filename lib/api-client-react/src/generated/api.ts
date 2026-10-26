@@ -32,6 +32,7 @@ import type {
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
   PrayerUsage,
+  PremiumTraditionLocked,
   SubmitCommunityPrayerRequest,
 } from "./api.schemas";
 
@@ -140,7 +141,7 @@ export const generatePrayer = async (
 };
 
 export const getGeneratePrayerMutationOptions = <
-  TError = ErrorType<FreeTierLimitReached>,
+  TError = ErrorType<FreeTierLimitReached | PremiumTraditionLocked>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -181,13 +182,15 @@ export type GeneratePrayerMutationResult = NonNullable<
   Awaited<ReturnType<typeof generatePrayer>>
 >;
 export type GeneratePrayerMutationBody = BodyType<GeneratePrayerRequest>;
-export type GeneratePrayerMutationError = ErrorType<FreeTierLimitReached>;
+export type GeneratePrayerMutationError = ErrorType<
+  FreeTierLimitReached | PremiumTraditionLocked
+>;
 
 /**
  * @summary Generate a prayer using AI
  */
 export const useGeneratePrayer = <
-  TError = ErrorType<FreeTierLimitReached>,
+  TError = ErrorType<FreeTierLimitReached | PremiumTraditionLocked>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -204,6 +207,92 @@ export const useGeneratePrayer = <
   TContext
 > => {
   return useMutation(getGeneratePrayerMutationOptions(options));
+};
+
+/**
+ * @summary Submit a prayer to the community collection
+ */
+export const getSubmitPrayerUrl = () => {
+  return `/api/prayers/submit`;
+};
+
+export const submitPrayer = async (
+  submitCommunityPrayerRequest: SubmitCommunityPrayerRequest,
+  options?: RequestInit,
+): Promise<CommunityPrayer> => {
+  return customFetch<CommunityPrayer>(getSubmitPrayerUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(submitCommunityPrayerRequest),
+  });
+};
+
+export const getSubmitPrayerMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitPrayer>>,
+    TError,
+    { data: BodyType<SubmitCommunityPrayerRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitPrayer>>,
+  TError,
+  { data: BodyType<SubmitCommunityPrayerRequest> },
+  TContext
+> => {
+  const mutationKey = ["submitPrayer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitPrayer>>,
+    { data: BodyType<SubmitCommunityPrayerRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return submitPrayer(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitPrayerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitPrayer>>
+>;
+export type SubmitPrayerMutationBody = BodyType<SubmitCommunityPrayerRequest>;
+export type SubmitPrayerMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Submit a prayer to the community collection
+ */
+export const useSubmitPrayer = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitPrayer>>,
+    TError,
+    { data: BodyType<SubmitCommunityPrayerRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitPrayer>>,
+  TError,
+  { data: BodyType<SubmitCommunityPrayerRequest> },
+  TContext
+> => {
+  return useMutation(getSubmitPrayerMutationOptions(options));
 };
 
 /**
@@ -304,7 +393,7 @@ export function useGetBrowsePrayers<
 }
 
 /**
- * @summary Submit a prayer to the community collection
+ * @summary Submit a prayer to the community collection (legacy — prefer /prayers/submit)
  */
 export const getSubmitCommunityPrayerUrl = () => {
   return `/api/prayers/browse`;
@@ -368,7 +457,7 @@ export type SubmitCommunityPrayerMutationBody =
 export type SubmitCommunityPrayerMutationError = ErrorType<ErrorEnvelope>;
 
 /**
- * @summary Submit a prayer to the community collection
+ * @summary Submit a prayer to the community collection (legacy — prefer /prayers/submit)
  */
 export const useSubmitCommunityPrayer = <
   TError = ErrorType<ErrorEnvelope>,

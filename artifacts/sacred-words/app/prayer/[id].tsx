@@ -19,10 +19,11 @@ import { useToast } from "@/hooks/useToast";
 import { getPrayerById, deletePrayer } from "@/hooks/useDatabase";
 import type { SavedPrayer } from "@/hooks/useDatabase";
 import { ShareOptionsModal } from "@/components/ShareOptionsModal";
-import { ShareToCommunityModal } from "@/components/ShareToCommunityModal";
 import PrayerShareCard from "@/components/PrayerShareCard";
 import { useShareAsImage } from "@/hooks/useShareAsImage";
 import { useAuth } from "@/lib/auth";
+import { useSubmitPrayer } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 function formatDate(dateStr: string): string {
   try {
@@ -46,10 +47,11 @@ export default function PrayerDetailScreen() {
   const { toast, showToast } = useToast();
   const [prayer, setPrayer] = useState<SavedPrayer | null>(null);
   const [shareModalVisible, setShareModalVisible] = useState(false);
-  const [communityModalVisible, setCommunityModalVisible] = useState(false);
 
   const { cardRef, isCapturing, shareAsImage, saveToLibrary } = useShareAsImage();
   const { isAuthenticated } = useAuth();
+  const submitMutation = useSubmitPrayer();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (id) {
@@ -95,6 +97,24 @@ export default function PrayerDetailScreen() {
       onSaveError: () => showToast("Could not share image", "error"),
     });
     setShareModalVisible(false);
+  };
+
+  const handleSubmitToCommunity = async () => {
+    if (!prayer || !isAuthenticated) return;
+    try {
+      await submitMutation.mutateAsync({
+        data: {
+          title: prayer.title,
+          tradition: prayer.tradition,
+          intention: prayer.intention,
+          text: prayer.text,
+        },
+      });
+      showToast("Your prayer is now in the community collection");
+      void queryClient.invalidateQueries({ queryKey: ["getBrowsePrayers"] });
+    } catch {
+      showToast("Could not submit prayer. Please try again.", "error");
+    }
   };
 
   const handleSaveToLibrary = async () => {
@@ -151,19 +171,6 @@ export default function PrayerDetailScreen() {
         onSaveToLibrary={handleSaveToLibrary}
         onShareAsText={handleShareText}
         isCapturing={isCapturing}
-      />
-
-      <ShareToCommunityModal
-        visible={communityModalVisible}
-        onClose={() => setCommunityModalVisible(false)}
-        onSuccess={() => {
-          setCommunityModalVisible(false);
-          showToast("Your prayer is now in the community collection");
-        }}
-        initialTitle={prayer.title}
-        initialTradition={prayer.tradition}
-        initialIntention={prayer.intention}
-        prayerText={prayer.text}
       />
 
       {/* Header */}
@@ -238,13 +245,16 @@ export default function PrayerDetailScreen() {
 
         {isAuthenticated && (
           <Pressable
-            onPress={() => setCommunityModalVisible(true)}
+            onPress={handleSubmitToCommunity}
+            disabled={submitMutation.isPending}
             accessibilityRole="button"
-            accessibilityLabel="Share prayer to community"
-            style={[styles.actionBtn, { backgroundColor: colors.parchment, borderColor: colors.gold, borderWidth: 1.5 }]}
+            accessibilityLabel="Submit prayer to community"
+            style={[styles.actionBtn, { backgroundColor: colors.parchment, borderColor: colors.gold, borderWidth: 1.5, opacity: submitMutation.isPending ? 0.6 : 1 }]}
           >
             <Feather name="users" size={18} color={colors.gold} />
-            <Text style={[styles.actionBtnText, { color: colors.gold, fontFamily: "Lato_700Bold" }]}>Community</Text>
+            <Text style={[styles.actionBtnText, { color: colors.gold, fontFamily: "Lato_700Bold" }]}>
+              {submitMutation.isPending ? "Submitting…" : "Community"}
+            </Text>
           </Pressable>
         )}
 

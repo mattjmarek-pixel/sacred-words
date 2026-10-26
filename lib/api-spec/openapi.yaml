@@ -53,6 +53,45 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/FreeTierLimitReached"
+        "403":
+          description: Selected tradition requires a premium subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PremiumTraditionLocked"
+
+  /prayers/submit:
+    post:
+      operationId: submitPrayer
+      tags: [prayers]
+      summary: Submit a prayer to the community collection
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitCommunityPrayerRequest"
+      responses:
+        "201":
+          description: Prayer submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityPrayer"
+        "400":
+          description: Missing or invalid fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
 
   /prayers/browse:
     get:
@@ -76,7 +115,7 @@ paths:
     post:
       operationId: submitCommunityPrayer
       tags: [prayers]
-      summary: Submit a prayer to the community collection
+      summary: Submit a prayer to the community collection (legacy — prefer /prayers/submit)
       parameters:
         - $ref: '#/components/parameters/AuthorizationSessionHeader'
       requestBody:
@@ -317,10 +356,21 @@ components:
         - count
         - limit
 
+    PremiumTraditionLocked:
+      type: object
+      properties:
+        error:
+          type: string
+        tradition:
+          type: string
+      required:
+        - error
+        - tradition
+
     PrayerUsage:
       type: object
       properties:
-        count:
+        generationsThisMonth:
           type: integer
         limit:
           type: integer
@@ -329,7 +379,7 @@ components:
         isPremium:
           type: boolean
       required:
-        - count
+        - generationsThisMonth
         - limit
         - month
         - isPremium

@@ -9,7 +9,17 @@ import type { Request, Response } from "express";
 
 const router = Router();
 
-const FREE_LIMIT = 100;
+const FREE_LIMIT = 3;
+
+const PREMIUM_TRADITIONS = new Set([
+  "Buddhist",
+  "Hindu",
+  "Sikh",
+  "Orthodox Christian",
+  "Bahá'í",
+  "Taoist",
+  "Indigenous & Land-Based Traditions",
+]);
 
 function getCurrentMonth(): string {
   const now = new Date();
@@ -230,23 +240,20 @@ router.get("/prayers/usage", async (req: Request, res: Response) => {
       getUsageCount(userId, month),
       checkPremiumServerSide(userId),
     ]);
-    res.json({ count, limit: FREE_LIMIT, month, isPremium: isPremium === true });
+    res.json({ generationsThisMonth: count, limit: FREE_LIMIT, month, isPremium: isPremium === true });
   } catch (err) {
     req.log.error({ err }, "Failed to fetch prayer usage");
-    res.json({ count: 0, limit: FREE_LIMIT, month, isPremium: false });
+    res.json({ generationsThisMonth: 0, limit: FREE_LIMIT, month, isPremium: false });
   }
 });
 
 router.post("/prayers/generate", async (req: Request, res: Response) => {
-  const isDev = process.env.NODE_ENV !== "production";
   if (!req.isAuthenticated()) {
-    if (!isDev) {
-      res.status(401).json({ error: "Sign in to generate prayers" });
-      return;
-    }
+    res.status(401).json({ error: "Sign in to generate prayers" });
+    return;
   }
 
-  const userId = req.isAuthenticated() ? req.user.id : "dev-guest";
+  const userId = req.user.id;
   const month = getCurrentMonth();
 
   // Enforce limits unless premium is positively established (true).
@@ -258,8 +265,8 @@ router.post("/prayers/generate", async (req: Request, res: Response) => {
   if (isPremium !== true) {
     const reservation = await tryReserveSlot(userId, month);
     if (!reservation.reserved) {
-      res.status(402).json({
-        error: `You've used all ${FREE_LIMIT} free prayers this month. Upgrade to generate unlimited prayers.`,
+      res.status(403).json({
+        error: "free_limit_reached",
         count: reservation.count,
         limit: FREE_LIMIT,
       });
@@ -278,6 +285,12 @@ router.post("/prayers/generate", async (req: Request, res: Response) => {
   if (!tradition || !intentions || !tone) {
     if (slotReserved) await releaseSlot(userId, month);
     res.status(400).json({ error: "Missing required fields" });
+    return;
+  }
+
+  if (PREMIUM_TRADITIONS.has(tradition) && isPremium !== true) {
+    if (slotReserved) await releaseSlot(userId, month);
+    res.status(403).json({ error: "premium_tradition_locked", tradition });
     return;
   }
 
@@ -328,7 +341,31 @@ Choose a deity precisely matched to the intention, and address that deity by the
 — Brahman, the Formless One, the All-pervading (for universal prayers)
 Weave in Sanskrit naturally: dharma, atman, shakti, puja, bhakti, moksha. Close with Namaste, "Om Shanti Shanti Shanti," or a surrender phrase: "Sarvaṃ tava — all is yours."`,
 
-    Indigenous: `This prayer is rooted in Indigenous spiritual relationship with the living world and must feel unmistakably so. It is spoken aloud, in circle, in the present tense, with the land as witness.
+    Sikh: `This prayer is rooted in Sikh faith and must sound unmistakably so, drawing on the spirit of Ardas — the communal petition that closes Sikh worship and daily life.
+Address Waheguru (Wonderful Lord/Sovereign) directly and reverently. Open in the spirit of the Mool Mantar's affirmation of the One — Ik Onkar, the One Universal Creator — before moving into the specific petition.
+Even when the prayer is personal, let its tone remain communal and humble: "we" alongside "I," gratitude before asking, remembrance of the Guru's grace (Guru Nanak and the ten Gurus, and the living Guru Granth Sahib) as the ground the petition stands on.
+Weave in the values of seva (selfless service), simran (remembrance of the Divine Name), chardi kala (relentless optimism, rising spirits even in hardship), and sarbat da bhala (the well-being of all). Ask not only for oneself but for the good of all.
+Close in the spirit of Ardas's closing plea: "Nanak Naam Chardi Kala, Tere Bhane Sarbat Da Bhala" (Through Nanak, may Your Name forever be exalted, and in Your Will, may all be blessed) — or simply "Waheguru Ji Ka Khalsa, Waheguru Ji Ki Fateh."`,
+
+    "Orthodox Christian": `This prayer is rooted in Eastern Orthodox Christian faith and must sound unmistakably so — distinct from both Catholic and Protestant registers, more liturgical, poetic, and mystical in tone.
+Address the Holy Trinity with reverence, and where fitting invoke the Theotokos (the Mother of God) or the saints and the communion of the Church triumphant. The prayer may draw on icon veneration and the sense of heaven interpenetrating earth.
+Let "Lord, have mercy" (Kyrie eleison) function as a natural refrain or closing repetition — the heartbeat of Orthodox prayer, echoed in the Jesus Prayer: "Lord Jesus Christ, Son of God, have mercy on me, a sinner."
+Draw on the language of theosis (union with God), the uncreated light, and the deep humility of the desert fathers and mothers. The register is hushed, incense-laden, unhurried — closer to chant than to conversation.
+Close with a doxological or Trinitarian flourish: "Glory to the Father, and to the Son, and to the Holy Spirit, now and ever and unto ages of ages, Amen," or simply "Lord, have mercy."`,
+
+    "Bahá'í": `This prayer is rooted in the Bahá'í Faith and must sound unmistakably so — lyrical, devotional, and centered on the oneness of God, religion, and humanity.
+Address God with reverent, elevated language — "O Thou kind Lord," "O my God," "O Thou Compassionate God" — echoing the poetic register of Bahá'u'lláh's and 'Abdu'l-Bahá's revealed prayers.
+The petition should widen outward from the personal to the universal: even a request for healing, guidance, or strength naturally opens onto the well-being and unity of "Thy servants," "this troubled world," or "the family of humankind." Bahá'í prayer rarely stays narrowly private.
+Draw on core Bahá'í imagery: light and illumination, the "Most Great Peace," spiritual springtime, the oneness of the human race as flowers of one garden or waves of one sea, and steadfastness in the Covenant.
+Close with a humble surrender to the Divine will, often naming God's attributes once more: "Thou art the Powerful, the Ever-Forgiving," or simply "Verily, Thou art the Hearer, the Answerer."`,
+
+    Taoist: `This prayer is rooted in Taoist (Daoist) spirituality and must sound unmistakably so. It is not addressed to a personal deity to be petitioned, but is an alignment with the Tao — the natural way underlying all things.
+Favor water, wind, valley, uncarved wood, and the turning of the seasons as governing images. Wu wei (effortless action, non-forcing) and the balance of yin and yang should shape both the content and the shape of the lines — soft where a Western prayer might be forceful, yielding where it might insist.
+The voice is reflective and unhurried rather than beseeching. Rather than asking for an outcome directly, the prayer may express a wish to move with the current of things, to return to simplicity (pu), or to find stillness (jing) in which right action becomes clear on its own.
+Where classical cadence helps, echo the spirit of the Tao Te Ching's paradoxical, spare style — short clauses, natural imagery standing in for abstraction, wisdom offered through observation rather than command.
+Close by resting in the Tao rather than demanding resolution: an image of water finding its level, of the valley receiving all streams, or simply a settling into quiet acceptance.`,
+
+    "Indigenous & Land-Based Traditions": `This prayer is rooted in Indigenous spiritual relationship with the living world and must feel unmistakably so. It is spoken aloud, in circle, in the present tense, with the land as witness.
 Address specific presences — do not speak to a distant God or to "nature" in the abstract. Address the four directions (East, South, West, North) by their gifts; address the Earth as a living grandmother; address specific elements: Water that remembers, Fire that transforms, Wind that carries, Stone that endures. Address the Ancestors by their presence, not their absence.
 The prayer must enact reciprocity: name what has been received and offer something in return — gratitude, attention, care, a promise of stewardship. We are not separate from this web; we are accountable to it.
 Let the prayer be grounded in the particular — a specific season, an animal that has shown itself, a plant in bloom, a river, a mountain. The sacred is not elsewhere; it is here.
@@ -388,6 +425,51 @@ Use the specific sacred language, liturgical forms, address forms, and imagery o
     if (slotReserved) await releaseSlot(userId, month);
     req.log.error({ err }, "Prayer generation failed");
     res.status(500).json({ error: "Something got quiet. Please try again." });
+  }
+});
+
+router.post("/prayers/submit", async (req: Request, res: Response) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Sign in to submit prayers" });
+    return;
+  }
+
+  const { title, tradition, intention, text } = req.body as {
+    title?: string;
+    tradition?: string;
+    intention?: string;
+    text?: string;
+  };
+
+  if (!title?.trim() || !tradition?.trim() || !intention?.trim() || !text?.trim()) {
+    res.status(400).json({ error: "All fields (title, tradition, intention, text) are required" });
+    return;
+  }
+
+  try {
+    const [inserted] = await db
+      .insert(communityPrayersTable)
+      .values({
+        title: title.trim(),
+        tradition: tradition.trim(),
+        intention: intention.trim(),
+        text: text.trim(),
+        isUserSubmitted: true,
+      })
+      .returning();
+
+    res.status(201).json({
+      id: inserted.id,
+      title: inserted.title,
+      tradition: inserted.tradition,
+      intention: inserted.intention,
+      text: inserted.text,
+      isUserSubmitted: inserted.isUserSubmitted,
+      createdAt: inserted.createdAt.toISOString(),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to submit community prayer");
+    res.status(500).json({ error: "Could not submit prayer" });
   }
 });
 

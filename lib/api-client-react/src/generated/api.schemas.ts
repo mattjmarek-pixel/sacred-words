@@ -27,8 +27,13 @@ export interface FreeTierLimitReached {
   limit: number;
 }
 
+export interface PremiumTraditionLocked {
+  error: string;
+  tradition: string;
+}
+
 export interface PrayerUsage {
-  count: number;
+  generationsThisMonth: number;
   limit: number;
   month: string;
   isPremium: boolean;

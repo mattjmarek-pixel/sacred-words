@@ -16,9 +16,10 @@ interface ChipProps {
   onPress: () => void;
   variant?: "gold" | "sage";
   disabled?: boolean;
+  locked?: boolean;
 }
 
-function Chip({ label, selected, onPress, variant = "gold", disabled }: ChipProps) {
+function Chip({ label, selected, onPress, variant = "gold", disabled, locked }: ChipProps) {
   const colors = useColors();
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -56,12 +57,12 @@ function Chip({ label, selected, onPress, variant = "gold", disabled }: ChipProp
     : colors.border;
 
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
+    <Animated.View style={{ transform: [{ scale }], opacity: locked && !selected ? 0.55 : 1 }}>
       <Pressable
         onPress={handlePress}
         accessibilityRole="radio"
-        accessibilityState={{ selected }}
-        accessibilityLabel={label}
+        accessibilityState={{ selected, disabled }}
+        accessibilityLabel={locked ? `${label}, premium` : label}
         style={[
           styles.chip,
           {
@@ -79,7 +80,7 @@ function Chip({ label, selected, onPress, variant = "gold", disabled }: ChipProp
             },
           ]}
         >
-          {label}
+          {locked ? `🔒 ${label}` : label}
         </Text>
       </Pressable>
     </Animated.View>
@@ -94,6 +95,8 @@ interface ChipSelectorProps {
   maxSelect?: number;
   variant?: "gold" | "sage";
   horizontal?: boolean;
+  lockedOptions?: string[];
+  onLockedPress?: (value: string) => void;
 }
 
 export function ChipSelector({
@@ -104,6 +107,8 @@ export function ChipSelector({
   maxSelect,
   variant = "gold",
   horizontal = false,
+  lockedOptions,
+  onLockedPress,
 }: ChipSelectorProps) {
   const isSelected = (option: string) => {
     if (multiSelect) {
@@ -118,6 +123,16 @@ export function ChipSelector({
     return count >= maxSelect && !isSelected(option);
   };
 
+  const isLocked = (option: string) => lockedOptions?.includes(option) ?? false;
+
+  const handlePress = (option: string) => {
+    if (isLocked(option)) {
+      onLockedPress?.(option);
+      return;
+    }
+    onSelect(option);
+  };
+
   if (horizontal) {
     return (
       <ScrollView
@@ -130,9 +145,10 @@ export function ChipSelector({
             key={option}
             label={option}
             selected={isSelected(option)}
-            onPress={() => onSelect(option)}
+            onPress={() => handlePress(option)}
             variant={variant}
             disabled={isDisabled(option)}
+            locked={isLocked(option)}
           />
         ))}
       </ScrollView>
@@ -146,9 +162,10 @@ export function ChipSelector({
           key={option}
           label={option}
           selected={isSelected(option)}
-          onPress={() => onSelect(option)}
+          onPress={() => handlePress(option)}
           variant={variant}
           disabled={isDisabled(option)}
+          locked={isLocked(option)}
         />
       ))}
     </View>

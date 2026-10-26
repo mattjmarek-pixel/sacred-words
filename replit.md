@@ -36,6 +36,7 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 **Features:**
 - **Build tab** — 4-step prayer builder: choose tradition, intentions (up to 3), tone, personal context → calls Claude via `/api/prayers/generate`
+  - 13 traditions with free/premium tiers: free — Universal, Christian, Catholic, Jewish, Islamic, Secular; premium — Buddhist, Hindu, Sikh, Orthodox Christian, Bahá'í, Taoist, Indigenous & Land-Based Traditions. Premium chips show a 🔒 lock and open the paywall instead of selecting; tapping "Generate" for a locked tradition is also blocked client-side before the request is sent.
 - **Library tab** — locally saved prayers using AsyncStorage; searchable; tap to open detail screen with share/copy/delete
 - **Browse tab** — community prayers fetched from `/api/prayers/browse` (PostgreSQL); filterable by tradition; tap to read, save, or share
 
@@ -47,7 +48,7 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 - **Workflow**: `artifacts/api-server: API Server`
 - **Routes:**
   - `GET  /api/healthz` — health check
-  - `POST /api/prayers/generate` — AI prayer generation via Anthropic claude-sonnet-4-6. Requires Replit OIDC auth (401 if unauthenticated). Enforces server-side free-tier limit (`FREE_LIMIT = 3`/month); returns `403` with `{ error: "free_limit_reached", count, limit }` when exceeded.
+  - `POST /api/prayers/generate` — AI prayer generation via Anthropic claude-sonnet-4-6. Requires Replit OIDC auth (401 if unauthenticated). Enforces server-side free-tier limit (`FREE_LIMIT = 3`/month); returns `403` with `{ error: "free_limit_reached", count, limit }` when exceeded. Also gates premium-tier traditions (`PREMIUM_TRADITIONS` set in `prayers.ts`) server-side via `checkPremiumServerSide`; returns `403` with `{ error: "premium_tradition_locked", tradition }` if a non-premium user requests one. System prompt (`TRADITION_VOICES`) has a dedicated authenticity guide per tradition, including all 7 premium traditions.
   - `GET  /api/prayers/usage` — current usage status for the authenticated user. Returns `{ generationsThisMonth, limit, month, isPremium }`.
   - `POST /api/prayers/submit` — submit a prayer to the community collection. Requires auth (401 if unauthenticated); validates `title`/`tradition`/`intention`/`text`.
   - `GET  /api/prayers/browse` — community prayers (filterable by `?tradition=`)

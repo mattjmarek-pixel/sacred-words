@@ -19,7 +19,7 @@ interface PaywallScreenProps {
 const BENEFITS = [
   { text: "Unlimited AI prayer generations" },
   { text: "Submit prayers to the community" },
-  { text: "All 8 faith traditions, always" },
+  { text: "All faith traditions, unlocked" },
   { text: "Support Sacred Words" },
 ];
 

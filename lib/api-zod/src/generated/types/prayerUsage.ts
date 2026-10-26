@@ -7,7 +7,7 @@
  */
 
 export interface PrayerUsage {
-  count: number;
+  generationsThisMonth: number;
   limit: number;
   month: string;
   isPremium: boolean;

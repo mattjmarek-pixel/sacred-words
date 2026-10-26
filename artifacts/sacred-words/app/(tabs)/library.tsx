@@ -71,10 +71,10 @@ function EmptyState() {
       </View>
 
       <Text style={[styles.emptyTitle, { color: colors.warmBrown, fontFamily: "PlayfairDisplay_600SemiBold" }]}>
-        Your library is empty.
+        No prayers yet
       </Text>
       <Text style={[styles.emptySub, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
-        Build your first prayer and save it here.
+        Generate your first prayer and it'll appear here
       </Text>
       <Pressable
         onPress={() => router.push("/")}

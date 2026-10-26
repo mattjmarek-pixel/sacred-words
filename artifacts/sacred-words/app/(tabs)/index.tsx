@@ -32,7 +32,27 @@ import { MilestoneModal } from "@/components/MilestoneModal";
 import { useStreak, MILESTONE_DAYS } from "@/hooks/useStreak";
 import { recordTraditionUsed, getMostUsedTradition } from "@/hooks/useTraditionHistory";
 
-const TRADITIONS = ["Universal", "Christian", "Catholic", "Jewish", "Islamic", "Buddhist", "Hindu", "Indigenous", "Secular"];
+interface TraditionOption {
+  name: string;
+  tier: "free" | "premium";
+}
+
+const TRADITIONS: TraditionOption[] = [
+  { name: "Universal", tier: "free" },
+  { name: "Christian", tier: "free" },
+  { name: "Catholic", tier: "free" },
+  { name: "Jewish", tier: "free" },
+  { name: "Islamic", tier: "free" },
+  { name: "Secular", tier: "free" },
+  { name: "Buddhist", tier: "premium" },
+  { name: "Hindu", tier: "premium" },
+  { name: "Sikh", tier: "premium" },
+  { name: "Orthodox Christian", tier: "premium" },
+  { name: "Bahá'í", tier: "premium" },
+  { name: "Taoist", tier: "premium" },
+];
+
+const TRADITION_NAMES = TRADITIONS.map((t) => t.name);
 const INTENTIONS = ["Gratitude", "Healing", "Guidance", "Strength", "Grief", "Protection", "Peace", "Celebration", "Hope", "Forgiveness"];
 const TONES = ["Contemplative", "Joyful", "Sorrowful", "Urgent", "Gentle", "Bold", "Quiet"];
 
@@ -68,9 +88,13 @@ export default function BuildScreen() {
     query: { queryKey: getGetPrayerUsageQueryKey(), enabled: isAuthenticated, staleTime: 60 * 1000 },
   });
 
-  const genCount = usageQuery.data?.count ?? 0;
+  const genCount = usageQuery.data?.generationsThisMonth ?? 0;
   const serverIsPremium = usageQuery.data?.isPremium ?? false;
   const effectivePremium = isPremium || serverIsPremium;
+
+  const lockedTraditions = effectivePremium
+    ? []
+    : TRADITIONS.filter((t) => t.tier === "premium").map((t) => t.name);
 
   const [intentions, setIntentions] = useState<string[]>([]);
   const [tone, setTone] = useState("");
@@ -99,6 +123,12 @@ export default function BuildScreen() {
 
   const handleGenerate = async () => {
     if (!effectivePremium && genCount >= FREE_LIMIT) {
+      setPaywallVisible(true);
+      return;
+    }
+
+    const selectedTier = TRADITIONS.find((t) => t.name === tradition)?.tier ?? "free";
+    if (selectedTier === "premium" && !effectivePremium) {
       setPaywallVisible(true);
       return;
     }
@@ -150,7 +180,7 @@ export default function BuildScreen() {
       Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true }).start();
 
       const apiErr = err as { status?: number };
-      if (apiErr?.status === 402) {
+      if (apiErr?.status === 403) {
         setPaywallVisible(true);
         return;
       }
@@ -330,11 +360,13 @@ export default function BuildScreen() {
 
         {sectionLabel("Your tradition", "①")}
         <ChipSelector
-          options={TRADITIONS}
+          options={TRADITION_NAMES}
           selected={tradition}
           onSelect={setTradition}
           variant="gold"
           horizontal
+          lockedOptions={lockedTraditions}
+          onLockedPress={() => setPaywallVisible(true)}
         />
 
         <View style={styles.sectionGap} />

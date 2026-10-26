@@ -31,6 +31,23 @@ export const GeneratePrayerResponse = zod.object({
 });
 
 /**
+ * @summary Submit a prayer to the community collection
+ */
+export const SubmitPrayerHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const SubmitPrayerBody = zod.object({
+  title: zod.string().min(1),
+  tradition: zod.string().min(1),
+  intention: zod.string().min(1),
+  text: zod.string().min(1),
+});
+
+/**
  * @summary Get community prayers
  */
 export const getBrowsePrayersQueryTraditionDefault = `All`;
@@ -54,7 +71,7 @@ export const GetBrowsePrayersResponse = zod.object({
 });
 
 /**
- * @summary Submit a prayer to the community collection
+ * @summary Submit a prayer to the community collection (legacy — prefer /prayers/submit)
  */
 export const SubmitCommunityPrayerHeader = zod.object({
   Authorization: zod
@@ -81,7 +98,7 @@ export const GetPrayerUsageHeader = zod.object({
 });
 
 export const GetPrayerUsageResponse = zod.object({
-  count: zod.number(),
+  generationsThisMonth: zod.number(),
   limit: zod.number(),
   month: zod.string(),
   isPremium: zod.boolean(),
