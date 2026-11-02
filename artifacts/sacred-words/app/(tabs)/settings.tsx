@@ -11,12 +11,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import { getBrowsePrayers } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/hooks/useToast";
 import { useTheme, type ThemePreference } from "@/lib/theme";
 import { Toast } from "@/components/Toast";
+import { SignOutSheet } from "@/components/SignOutSheet";
 import { getMostUsedTradition } from "@/hooks/useTraditionHistory";
 import { loadStreak } from "@/hooks/useStreak";
+import { useAppAuth } from "@/lib/useAppAuth";
 import {
   getNotificationPreferences,
   saveNotificationPreferences,
@@ -38,11 +41,7 @@ const TIME_OPTIONS: Array<{ value: ActiveNotificationTime; label: string; icon: 
 
 async function fetchPrayerTeasers(): Promise<PrayerTeaserItem[]> {
   try {
-    const domain = process.env.EXPO_PUBLIC_DOMAIN;
-    const base = domain ? `https://${domain}` : "";
-    const res = await fetch(`${base}/api/prayers/browse`);
-    if (!res.ok) return [];
-    const json = (await res.json()) as { prayers: Array<{ id: number; title: string }> };
+    const json = await getBrowsePrayers();
     return json.prayers.map((p) => ({ id: p.id, title: p.title }));
   } catch {
     return [];
@@ -60,8 +59,10 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { toast, showToast } = useToast();
   const { preference: themePreference, setPreference: setThemePreference } = useTheme();
+  const { user, isAuthenticated, logout } = useAppAuth();
 
   const [enabled, setEnabled] = useState(false);
+  const [accountVisible, setAccountVisible] = useState(false);
   const [selectedTime, setSelectedTime] = useState<ActiveNotificationTime>("morning");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -146,6 +147,12 @@ export default function SettingsScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.cream }]}>
       <Toast message={toast?.message ?? ""} type={toast?.type} visible={!!toast} />
+      <SignOutSheet
+        visible={accountVisible}
+        user={user}
+        onClose={() => setAccountVisible(false)}
+        onSignOut={logout}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -154,6 +161,27 @@ export default function SettingsScreen() {
         <Text style={[styles.heading, { color: colors.warmBrown, fontFamily: "PlayfairDisplay_600SemiBold" }]}>
           Settings
         </Text>
+
+        {isAuthenticated && (
+          <View style={[styles.section, { backgroundColor: colors.parchment, borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.warmBrown, fontFamily: "Lato_700Bold" }]}>
+              Account
+            </Text>
+            <Text style={[styles.accountEmail, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
+              {user?.email}
+            </Text>
+            <Pressable
+              onPress={() => setAccountVisible(true)}
+              accessibilityRole="button"
+              style={[styles.accountSignOutButton, { borderColor: colors.destructive }]}
+            >
+              <Feather name="log-out" size={17} color={colors.destructive} />
+              <Text style={[styles.accountSignOutText, { color: colors.destructive, fontFamily: "Lato_700Bold" }]}>
+                Sign out
+              </Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Your Practice stats */}
         <View style={[styles.section, { backgroundColor: colors.parchment, borderColor: colors.border }]}>
@@ -370,6 +398,17 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   scroll: { paddingHorizontal: 20, gap: 20 },
   heading: { fontSize: 28, lineHeight: 36 },
+  accountEmail: { fontSize: 14 },
+  accountSignOutButton: {
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  accountSignOutText: { fontSize: 15 },
 
   section: {
     borderRadius: 16,

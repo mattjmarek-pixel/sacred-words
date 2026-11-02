@@ -26,7 +26,7 @@ import {
   useReportCommunityPrayer,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/lib/auth";
+import { useAppAuth } from "@/lib/useAppAuth";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useShareAsImage } from "@/hooks/useShareAsImage";
 import { ShareOptionsModal } from "@/components/ShareOptionsModal";
@@ -99,7 +99,7 @@ export default function BrowseScreen() {
   const insets = useSafeAreaInsets();
   const { toast, showToast } = useToast();
   const queryClient = useQueryClient();
-  const { user, isAuthenticated, login } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, login } = useAppAuth();
   const [selectedTradition, setSelectedTradition] = useState("All");
   const [selectedPrayer, setSelectedPrayer] = useState<CommunityPrayerBrowseItem | null>(null);
   const [shareModalVisible, setShareModalVisible] = useState(false);
@@ -112,7 +112,7 @@ export default function BrowseScreen() {
 
   const { data, isLoading, isError, refetch } = useGetBrowsePrayers(
     { tradition: selectedTradition },
-    { query: { queryKey: getGetBrowsePrayersQueryKey({ tradition: selectedTradition }) } }
+    { query: { queryKey: getGetBrowsePrayersQueryKey({ tradition: selectedTradition }), enabled: !authLoading } }
   );
 
   const prayers = (data?.prayers ?? []).filter((prayer) => !hiddenPrayerIds.includes(prayer.id));
@@ -330,6 +330,7 @@ export default function BrowseScreen() {
         </View>
       ) : (
         <FlatList
+          testID={data ? "server-community-prayers" : undefined}
           data={prayers}
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => (

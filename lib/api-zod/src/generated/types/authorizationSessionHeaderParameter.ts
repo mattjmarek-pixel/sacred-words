@@ -7,6 +7,6 @@
  */
 
 /**
- * Opaque session token — `Bearer <sid>`.
+ * Clerk session JWT for native mobile requests. Web requests use cookies.
  */
 export type AuthorizationSessionHeaderParameter = string;

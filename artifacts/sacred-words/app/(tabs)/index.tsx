@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/useToast";
 import { savePrayer } from "@/hooks/useDatabase";
 import { useGeneratePrayer, useGetPrayerUsage, getGetPrayerUsageQueryKey } from "@workspace/api-client-react";
 import { Share } from "react-native";
-import { useAuth } from "@/lib/auth";
+import { useAppAuth } from "@/lib/useAppAuth";
 import { useSubscription } from "@/lib/revenuecat";
 import { PaywallScreen } from "@/components/PaywallScreen";
 import { ShareOptionsModal } from "@/components/ShareOptionsModal";
@@ -62,7 +62,7 @@ export default function BuildScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { toast, showToast } = useToast();
-  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, login } = useAppAuth();
   const { isPremium } = useSubscription();
   const queryClient = useQueryClient();
   const { streak, refresh: refreshStreak, record: recordStreak } = useStreak();
@@ -122,6 +122,12 @@ export default function BuildScreen() {
   };
 
   const handleGenerate = async () => {
+    if (!isAuthenticated) {
+      showToast("Sign in to generate your prayer", "info");
+      login();
+      return;
+    }
+
     if (!effectivePremium && genCount >= FREE_LIMIT) {
       setPaywallVisible(true);
       return;
@@ -179,8 +185,14 @@ export default function BuildScreen() {
     } catch (err: unknown) {
       Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true }).start();
 
-      const apiErr = err as { status?: number };
-      if (apiErr?.status === 403) {
+      const apiErr = err as { status?: number; response?: { status?: number } };
+      const status = apiErr?.status ?? apiErr?.response?.status;
+      if (status === 401) {
+        showToast("Sign in to generate your prayer", "info");
+        login();
+        return;
+      }
+      if (status === 403) {
         setPaywallVisible(true);
         return;
       }
@@ -470,9 +482,14 @@ export default function BuildScreen() {
             </Pressable>
           </Animated.View>
 
-          {isAuthenticated && !effectivePremium && !limitReached && (
-            <Text style={[styles.genLimit, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
+          {isAuthenticated && usageQuery.isSuccess && !effectivePremium && !limitReached && (
+            <Text testID="server-usage-count" style={[styles.genLimit, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
               {genCount} of {FREE_LIMIT} free prayer{genCount === 1 ? "" : "s"} used this month
+            </Text>
+          )}
+          {isAuthenticated && usageQuery.isError && (
+            <Text testID="usage-access-error" accessibilityRole="alert" style={{ color: colors.destructive }}>
+              We could not load your account access. Please try again, or sign out and sign back in.
             </Text>
           )}
           {limitReached && (

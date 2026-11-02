@@ -23,7 +23,7 @@ import { PaywallScreen } from "@/components/PaywallScreen";
 import { ShareToCommunityModal } from "@/components/ShareToCommunityModal";
 import PrayerShareCard from "@/components/PrayerShareCard";
 import { useShareAsImage } from "@/hooks/useShareAsImage";
-import { useAuth } from "@/lib/auth";
+import { useAppAuth } from "@/lib/useAppAuth";
 import { useSubscription } from "@/lib/revenuecat";
 import {
   getGetPrayerUsageQueryKey,
@@ -56,7 +56,7 @@ export default function PrayerDetailScreen() {
   const [paywallVisible, setPaywallVisible] = useState(false);
 
   const { cardRef, isCapturing, shareAsImage, saveToLibrary } = useShareAsImage();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAppAuth();
   const { isPremium } = useSubscription();
   const usageQuery = useGetPrayerUsage({
     query: {

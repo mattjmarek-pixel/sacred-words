@@ -18,7 +18,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { setBaseUrl, setAuthTokenGetter } from "@workspace/api-client-react";
+import { setBaseUrl, setAuthTokenGetter, getBrowsePrayers } from "@workspace/api-client-react";
+import { useAuth } from "@/lib/clerkHooks";
+import { ClerkRoot } from "@/lib/ClerkRoot";
 import {
   Modal,
   Platform,
@@ -31,7 +33,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import colors from "@/constants/colors";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AuthProvider, tokenStore, AUTH_TOKEN_KEY } from "@/lib/auth";
 import { initializeRevenueCat, SubscriptionProvider } from "@/lib/revenuecat";
 import { ThemeProvider, useTheme } from "@/lib/theme";
 import {
@@ -42,10 +43,9 @@ import {
   type PrayerTeaserItem,
 } from "@/lib/notifications";
 
-if (process.env.EXPO_PUBLIC_DOMAIN) {
+if (Platform.OS !== "web" && process.env.EXPO_PUBLIC_DOMAIN) {
   setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 }
-setAuthTokenGetter(() => tokenStore.get(AUTH_TOKEN_KEY));
 
 try {
   initializeRevenueCat();
@@ -69,15 +69,25 @@ const LAST_HANDLED_NOTIFICATION_KEY = "sacred_words_last_handled_notification_id
 
 async function fetchPrayerTeasers(): Promise<PrayerTeaserItem[]> {
   try {
-    const domain = process.env.EXPO_PUBLIC_DOMAIN;
-    const base = domain ? `https://${domain}` : "";
-    const res = await fetch(`${base}/api/prayers/browse`);
-    if (!res.ok) return [];
-    const json = (await res.json()) as { prayers: Array<{ id: number; title: string }> };
+    const json = await getBrowsePrayers();
     return json.prayers.map((p) => ({ id: p.id, title: p.title }));
   } catch {
     return [];
   }
+}
+
+function ClerkApiSession() {
+  const { getToken, userId, isLoaded } = useAuth();
+  const previousId = useRef<string | null | undefined>(undefined);
+  // Register synchronously before descendants can issue their first query.
+  // Expo web uses same-origin cookies, never explicit bearer tokens.
+  if (Platform.OS !== "web") setAuthTokenGetter(() => getToken());
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (previousId.current !== undefined && previousId.current !== userId) queryClient.clear();
+    previousId.current = userId;
+  }, [isLoaded, userId]);
+  return null;
 }
 
 function navigateToPrayer(
@@ -313,7 +323,8 @@ export default function RootLayout() {
       <ErrorBoundary>
         <ThemeProvider>
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>
+          <ClerkRoot>
+            <ClerkApiSession />
             <SubscriptionProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
@@ -321,7 +332,7 @@ export default function RootLayout() {
                 </KeyboardProvider>
               </GestureHandlerRootView>
             </SubscriptionProvider>
-          </AuthProvider>
+          </ClerkRoot>
         </QueryClientProvider>
         </ThemeProvider>
       </ErrorBoundary>

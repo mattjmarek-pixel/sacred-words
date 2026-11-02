@@ -8,9 +8,10 @@ import { Image } from "expo-image";
 
 import { useColors } from "@/hooks/useColors";
 import { useTheme } from "@/lib/theme";
-import { useAuth } from "@/lib/auth";
+import { useAppAuth } from "@/lib/useAppAuth";
 import { useSubscription } from "@/lib/revenuecat";
 import { PaywallScreen } from "@/components/PaywallScreen";
+import { SignOutSheet } from "@/components/SignOutSheet";
 
 interface ProfileButtonProps {
   onGoPremium: () => void;
@@ -18,8 +19,9 @@ interface ProfileButtonProps {
 
 function ProfileButton({ onGoPremium }: ProfileButtonProps) {
   const colors = useColors();
-  const { user, isAuthenticated, login, logout } = useAuth();
+  const { user, isAuthenticated, login, logout } = useAppAuth();
   const { isPremium } = useSubscription();
+  const [accountVisible, setAccountVisible] = useState(false);
 
   if (!isAuthenticated) {
     return (
@@ -37,66 +39,74 @@ function ProfileButton({ onGoPremium }: ProfileButtonProps) {
   }
 
   return (
-    <View style={styles.profileRow}>
-      {!isPremium && (
-        <Pressable
-          onPress={onGoPremium}
-          accessibilityRole="button"
-          accessibilityLabel="Go Premium"
-          style={[styles.proBadge, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}
-        >
-          <Text style={[styles.proBadgeText, { color: colors.gold, fontFamily: "Lato_700Bold" }]}>
-            ♛ Pro
-          </Text>
-        </Pressable>
-      )}
-
-      <Pressable
-        onPress={logout}
-        accessibilityRole="button"
-        accessibilityLabel="Sign out"
-        style={styles.avatarBtn}
-      >
-        {user?.profileImageUrl ? (
-          <View>
-            <Image
-              source={{ uri: user.profileImageUrl }}
-              style={[
-                styles.avatar,
-                { borderColor: isPremium ? colors.gold : colors.border },
-              ]}
-              contentFit="cover"
-            />
-            {isPremium && (
-              <View style={[styles.crownBadge, { backgroundColor: colors.gold }]}>
-                <Text style={styles.crownText}>♛</Text>
-              </View>
-            )}
-          </View>
-        ) : (
-          <View>
-            <View
-              style={[
-                styles.avatarFallback,
-                {
-                  backgroundColor: isPremium ? colors.goldLight : colors.parchment,
-                  borderColor: isPremium ? colors.gold : colors.border,
-                },
-              ]}
-            >
-              <Text style={[styles.avatarInitial, { color: isPremium ? colors.gold : colors.muted, fontFamily: "Lato_700Bold" }]}>
-                {(user?.firstName?.[0] ?? user?.email?.[0] ?? "?").toUpperCase()}
-              </Text>
-            </View>
-            {isPremium && (
-              <View style={[styles.crownBadge, { backgroundColor: colors.gold }]}>
-                <Text style={styles.crownText}>♛</Text>
-              </View>
-            )}
-          </View>
+    <>
+      <View style={styles.profileRow}>
+        {!isPremium && (
+          <Pressable
+            onPress={onGoPremium}
+            accessibilityRole="button"
+            accessibilityLabel="Go Premium"
+            style={[styles.proBadge, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}
+          >
+            <Text style={[styles.proBadgeText, { color: colors.gold, fontFamily: "Lato_700Bold" }]}>
+              ♛ Pro
+            </Text>
+          </Pressable>
         )}
-      </Pressable>
-    </View>
+
+        <Pressable
+          onPress={() => setAccountVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Open account menu"
+          style={styles.avatarBtn}
+        >
+          {user?.profileImageUrl ? (
+            <View>
+              <Image
+                source={{ uri: user.profileImageUrl }}
+                style={[
+                  styles.avatar,
+                  { borderColor: isPremium ? colors.gold : colors.border },
+                ]}
+                contentFit="cover"
+              />
+              {isPremium && (
+                <View style={[styles.crownBadge, { backgroundColor: colors.gold }]}>
+                  <Text style={styles.crownText}>♛</Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <View>
+              <View
+                style={[
+                  styles.avatarFallback,
+                  {
+                    backgroundColor: isPremium ? colors.goldLight : colors.parchment,
+                    borderColor: isPremium ? colors.gold : colors.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.avatarInitial, { color: isPremium ? colors.gold : colors.muted, fontFamily: "Lato_700Bold" }]}>
+                  {(user?.firstName?.[0] ?? user?.email?.[0] ?? "?").toUpperCase()}
+                </Text>
+              </View>
+              {isPremium && (
+                <View style={[styles.crownBadge, { backgroundColor: colors.gold }]}>
+                  <Text style={styles.crownText}>♛</Text>
+                </View>
+              )}
+            </View>
+          )}
+        </Pressable>
+      </View>
+      <SignOutSheet
+        visible={accountVisible}
+        user={user}
+        onClose={() => setAccountVisible(false)}
+        onSignOut={logout}
+      />
+    </>
   );
 }
 

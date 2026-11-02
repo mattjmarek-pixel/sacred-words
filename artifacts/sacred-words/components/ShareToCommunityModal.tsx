@@ -19,7 +19,7 @@ import {
 } from "@workspace/api-client-react";
 import type { CommunityPrayer } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/lib/auth";
+import { useAppAuth } from "@/lib/useAppAuth";
 
 const TRADITIONS = [
   "Universal",
@@ -67,7 +67,7 @@ export function ShareToCommunityModal({
   const [tradition, setTradition] = useState(initialTradition);
 
   const submitMutation = useSubmitCommunityPrayer();
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, login } = useAppAuth();
   const [needsLogin, setNeedsLogin] = useState(false);
 
   useEffect(() => {

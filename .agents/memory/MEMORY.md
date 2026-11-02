@@ -1,0 +1,1 @@
+- [Managed Clerk claim limits](managed-clerk-claims.md) — accountless CLI access cannot read or patch session claims; verify real tokens and do not switch to external Clerk to bypass this.

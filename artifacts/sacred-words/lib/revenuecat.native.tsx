@@ -4,7 +4,7 @@ import Purchases from "react-native-purchases";
 import type { PurchasesOfferings, CustomerInfo } from "react-native-purchases";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
-import { useAuth } from "@/lib/auth";
+import { useAppAuth } from "@/lib/useAppAuth";
 
 const REVENUECAT_TEST_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_TEST_API_KEY;
 const REVENUECAT_IOS_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY;
@@ -43,7 +43,7 @@ export function initializeRevenueCat() {
 }
 
 function useSubscriptionContext() {
-  const { user } = useAuth();
+  const { user } = useAppAuth();
   const queryClient = useQueryClient();
 
   useEffect(() => {

@@ -333,11 +333,11 @@ async function seedCommunityPrayers() {
 seedCommunityPrayers();
 
 router.get("/prayers/usage", async (req: Request, res: Response) => {
-  if (!req.isAuthenticated()) {
+  if (!req.dbUser) {
     res.status(401).json({ error: "Sign in to view usage" });
     return;
   }
-  const userId = req.user.id;
+  const userId = req.dbUser.id;
   const month = getCurrentMonth();
   try {
     const [count, isPremium] = await Promise.all([
@@ -352,12 +352,12 @@ router.get("/prayers/usage", async (req: Request, res: Response) => {
 });
 
 router.post("/prayers/generate", async (req: Request, res: Response) => {
-  if (!req.isAuthenticated()) {
+  if (!req.dbUser) {
     res.status(401).json({ error: "Sign in to generate prayers" });
     return;
   }
 
-  const userId = req.user.id;
+  const userId = req.dbUser.id;
   const month = getCurrentMonth();
 
   const { tradition: requestedTradition, intentions, tone, context } = req.body as {
@@ -538,12 +538,13 @@ Use the specific sacred language, liturgical forms, address forms, and imagery o
 });
 
 async function handleCommunityPrayerSubmission(req: Request, res: Response) {
-  if (!req.isAuthenticated()) {
+  if (!req.dbUser) {
     res.status(401).json({ error: "Sign in to submit prayers" });
     return;
   }
 
-  const isPremium = await checkPremiumServerSide(req.user.id);
+  const userId = req.dbUser.id;
+  const isPremium = await checkPremiumServerSide(userId);
   if (isPremium !== true) {
     res.status(403).json({ error: "premium_required" });
     return;
@@ -591,21 +592,21 @@ async function handleCommunityPrayerSubmission(req: Request, res: Response) {
   }
 
   try {
-    if (await countRecentSubmissions(req.user.id) >= SUBMISSION_LIMIT_PER_24_HOURS) {
+    if (await countRecentSubmissions(userId) >= SUBMISSION_LIMIT_PER_24_HOURS) {
       res.status(429).json({ error: "submission_limit_reached" });
       return;
     }
 
     const status = await screenCommunityPrayer(req, title, text);
     const inserted = await db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(2, hashtext(${req.user.id}))`);
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(2, hashtext(${userId}))`);
 
       const [recentCount] = await tx
         .select({ count: sql<number>`count(*)::int` })
         .from(communityPrayersTable)
         .where(
           and(
-            eq(communityPrayersTable.submittedBy, req.user.id),
+            eq(communityPrayersTable.submittedBy, userId),
             gte(communityPrayersTable.createdAt, sql`now() - interval '24 hours'`),
           ),
         );
@@ -619,7 +620,7 @@ async function handleCommunityPrayerSubmission(req: Request, res: Response) {
           intention,
           text,
           isUserSubmitted: true,
-          submittedBy: req.user.id,
+          submittedBy: userId,
           status,
         })
         .returning();
@@ -642,11 +643,12 @@ router.post("/prayers/submit", handleCommunityPrayerSubmission);
 router.post("/prayers/browse", handleCommunityPrayerSubmission);
 
 router.post("/prayers/:id/report", async (req: Request, res: Response) => {
-  if (!req.isAuthenticated()) {
+  if (!req.dbUser) {
     res.status(401).json({ error: "Sign in to report prayers" });
     return;
   }
 
+  const userId = req.dbUser.id;
   const prayerId = Number(req.params.id);
   if (!Number.isSafeInteger(prayerId) || prayerId < 1) {
     res.status(400).json({ error: "Prayer ID is invalid." });
@@ -676,7 +678,7 @@ router.post("/prayers/:id/report", async (req: Request, res: Response) => {
         .insert(prayerReportsTable)
         .values({
           prayerId,
-          reporterUserId: req.user.id,
+          reporterUserId: userId,
           reason,
         })
         .onConflictDoNothing()
@@ -731,7 +733,7 @@ router.post("/prayers/:id/report", async (req: Request, res: Response) => {
 });
 
 router.post("/prayers/:id/block-author", async (req: Request, res: Response) => {
-  if (!req.isAuthenticated()) {
+  if (!req.dbUser) {
     res.status(401).json({ error: "Sign in to block prayer authors" });
     return;
   }
@@ -761,7 +763,7 @@ router.post("/prayers/:id/block-author", async (req: Request, res: Response) => 
     await db
       .insert(userBlocksTable)
       .values({
-        blockerUserId: req.user.id,
+        blockerUserId: req.dbUser.id,
         blockedUserId: prayer.submittedBy,
       })
       .onConflictDoNothing();
@@ -780,7 +782,7 @@ router.get("/prayers/browse", async (req: Request, res: Response) => {
     if (tradition && tradition !== "All") {
       conditions.push(eq(communityPrayersTable.tradition, tradition));
     }
-    if (req.isAuthenticated() && req.user?.id) {
+    if (req.dbUser) {
       conditions.push(
         notExists(
           db
@@ -788,7 +790,7 @@ router.get("/prayers/browse", async (req: Request, res: Response) => {
             .from(userBlocksTable)
             .where(
               and(
-                eq(userBlocksTable.blockerUserId, req.user.id),
+                eq(userBlocksTable.blockerUserId, req.dbUser.id),
                 eq(userBlocksTable.blockedUserId, communityPrayersTable.submittedBy),
               ),
             ),
@@ -801,7 +803,7 @@ router.get("/prayers/browse", async (req: Request, res: Response) => {
             .from(prayerReportsTable)
             .where(
               and(
-                eq(prayerReportsTable.reporterUserId, req.user.id),
+                eq(prayerReportsTable.reporterUserId, req.dbUser.id),
                 eq(prayerReportsTable.prayerId, communityPrayersTable.id),
               ),
             ),
