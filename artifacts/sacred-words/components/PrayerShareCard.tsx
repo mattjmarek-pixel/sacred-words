@@ -1,6 +1,7 @@
 import React, { forwardRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useFonts, PlayfairDisplay_400Regular_Italic, PlayfairDisplay_600SemiBold } from "@expo-google-fonts/playfair-display";
+import { getTraditionLabel } from "@/lib/traditions";
 
 interface PrayerShareCardProps {
   title: string;
@@ -36,7 +37,7 @@ const PrayerShareCard = forwardRef<View, PrayerShareCardProps>(
           <View style={styles.topRow}>
             <Text style={styles.symbol}>{symbol}</Text>
             <View style={styles.badge}>
-              <Text style={[styles.badgeText, { fontFamily: titleFont }]}>{tradition}</Text>
+              <Text style={[styles.badgeText, { fontFamily: titleFont }]}>{getTraditionLabel(tradition)}</Text>
             </View>
           </View>
 

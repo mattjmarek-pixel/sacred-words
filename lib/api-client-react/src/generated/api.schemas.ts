@@ -9,8 +9,20 @@ export interface HealthStatus {
   status: string;
 }
 
+export type GeneratePrayerRequestTradition =
+  (typeof GeneratePrayerRequestTradition)[keyof typeof GeneratePrayerRequestTradition];
+
+export const GeneratePrayerRequestTradition = {
+  Catholic: "Catholic",
+  Christian: "Christian",
+  Universal: "Universal",
+  Jewish: "Jewish",
+  Islamic: "Islamic",
+  Secular: "Secular",
+} as const;
+
 export interface GeneratePrayerRequest {
-  tradition: string;
+  tradition: GeneratePrayerRequestTradition;
   intentions: string[];
   tone: string;
   context?: string;
@@ -25,11 +37,6 @@ export interface FreeTierLimitReached {
   error: string;
   count: number;
   limit: number;
-}
-
-export interface PremiumTraditionLocked {
-  error: string;
-  tradition: string;
 }
 
 export interface PrayerUsage {
@@ -86,14 +93,25 @@ export interface CommunityPrayerList {
   prayers: CommunityPrayerBrowseItem[];
 }
 
+export type SubmitCommunityPrayerRequestTradition =
+  (typeof SubmitCommunityPrayerRequestTradition)[keyof typeof SubmitCommunityPrayerRequestTradition];
+
+export const SubmitCommunityPrayerRequestTradition = {
+  Catholic: "Catholic",
+  Christian: "Christian",
+  Universal: "Universal",
+  Jewish: "Jewish",
+  Islamic: "Islamic",
+  Secular: "Secular",
+} as const;
+
 export interface SubmitCommunityPrayerRequest {
   /**
    * @minLength 1
    * @maxLength 80
    */
   title: string;
-  /** @minLength 1 */
-  tradition: string;
+  tradition: SubmitCommunityPrayerRequestTradition;
   /** @minLength 1 */
   intention: string;
   /**
@@ -146,5 +164,18 @@ export interface ErrorEnvelope {
 export type AuthorizationSessionHeaderParameter = string;
 
 export type GetBrowsePrayersParams = {
-  tradition?: string;
+  tradition?: GetBrowsePrayersTradition;
 };
+
+export type GetBrowsePrayersTradition =
+  (typeof GetBrowsePrayersTradition)[keyof typeof GetBrowsePrayersTradition];
+
+export const GetBrowsePrayersTradition = {
+  All: "All",
+  Catholic: "Catholic",
+  Christian: "Christian",
+  Universal: "Universal",
+  Jewish: "Jewish",
+  Islamic: "Islamic",
+  Secular: "Secular",
+} as const;

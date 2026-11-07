@@ -23,6 +23,8 @@ export function AuthScreen({ signUpMode = false }: { signUpMode?: boolean }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [resetStep, setResetStep] = useState<"email" | "code" | null>(null);
+  const [resetCodeVerified, setResetCodeVerified] = useState(false);
   const verifyingSignUp = signUpMode && signUp.status === "missing_requirements"
     && signUp.unverifiedFields.includes("email_address") && signUp.missingFields.length === 0;
   const verifyingSignIn = !signUpMode
@@ -30,6 +32,7 @@ export function AuthScreen({ signUpMode = false }: { signUpMode?: boolean }) {
   const verifying = verifyingSignUp || verifyingSignIn;
   const loading = busy || signInStatus === "fetching" || signUpStatus === "fetching";
   const errors = signUpMode ? signUpErrors : signInErrors;
+  const resettingPassword = !signUpMode && resetStep !== null;
 
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -55,7 +58,48 @@ export function AuthScreen({ signUpMode = false }: { signUpMode?: boolean }) {
   async function submit() {
     // Read the updated resource after verification, not TS's pre-await narrowing.
     const complete = () => (signUpMode ? signUp.status : signIn.status) === "complete";
-    if (verifyingSignUp) {
+    if (resetStep === "email") {
+      setResetCodeVerified(false);
+      const created = await signIn.create({ identifier: email.trim() });
+      if (created.error) {
+        setError(created.error.message);
+        return;
+      }
+      const sent = await signIn.resetPasswordEmailCode.sendCode();
+      if (sent.error) {
+        setError(sent.error.message);
+        return;
+      }
+      setResetStep("code");
+    } else if (resetStep === "code") {
+      if (!resetCodeVerified) {
+        const verified = await signIn.resetPasswordEmailCode.verifyCode({ code });
+        if (verified.error) {
+          setError(verified.error.message);
+          return;
+        }
+        setResetCodeVerified(true);
+      }
+      const reset = await signIn.resetPasswordEmailCode.submitPassword({ password });
+      if (reset.error) {
+        setError(reset.error.message);
+        return;
+      }
+      if (signIn.status === "complete") {
+        setResetStep(null);
+        await finish();
+      } else if (
+        (signIn.status === "needs_second_factor" || signIn.status === "needs_client_trust")
+        && signIn.supportedSecondFactors.some((factor) => factor.strategy === "email_code")
+      ) {
+        setResetStep(null);
+        setCode("");
+        const sent = await signIn.mfa.sendEmailCode();
+        if (sent.error) setError(sent.error.message);
+      } else {
+        setError("This account requires another verification method. Please use your linked sign-in provider.");
+      }
+    } else if (verifyingSignUp) {
       const result = await signUp.verifications.verifyEmailCode({ code });
       if (!result.error && complete()) await finish();
     } else if (verifyingSignIn) {
@@ -80,6 +124,15 @@ export function AuthScreen({ signUpMode = false }: { signUpMode?: boolean }) {
     }
   }
 
+  async function backToSignIn() {
+    await signIn.reset();
+    setResetStep(null);
+    setResetCodeVerified(false);
+    setCode("");
+    setPassword("");
+    setError("");
+  }
+
   async function social(strategy: "oauth_google" | "oauth_apple") {
     const result = await startSSOFlow({
       strategy,
@@ -96,8 +149,10 @@ export function AuthScreen({ signUpMode = false }: { signUpMode?: boolean }) {
   if (isSignedIn) return <Redirect href="/" />;
   const messages = [
     error,
-    errors.global?.[0]?.message,
-    ...Object.values(errors.fields).map((field) => field?.message),
+    ...(resettingPassword ? [] : [
+      errors.global?.[0]?.message,
+      ...Object.values(errors.fields).map((field) => field?.message),
+    ]),
   ].filter(Boolean);
   const inputStyle = [styles.input, { borderColor: c.border, color: c.ink, backgroundColor: c.parchment }];
   return (
@@ -105,9 +160,9 @@ export function AuthScreen({ signUpMode = false }: { signUpMode?: boolean }) {
       paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40, backgroundColor: c.cream,
     }]} keyboardShouldPersistTaps="handled">
       <Text style={[styles.brand, { color: c.gold }]}>Sacred Words</Text>
-      <Text style={[styles.title, { color: c.warmBrown }]}>{verifying ? "Check your email" : signUpMode ? "Create your account" : "Welcome back"}</Text>
-      <Text style={[styles.subtitle, { color: c.muted }]}>{verifying ? "Enter the verification code to continue." : "A quiet place for your prayers."}</Text>
-      {!verifying && <>
+      <Text style={[styles.title, { color: c.warmBrown }]}>{verifying ? "Check your email" : resettingPassword ? "Reset your password" : signUpMode ? "Create your account" : "Welcome back"}</Text>
+      <Text style={[styles.subtitle, { color: c.muted }]}>{verifying ? "Enter the verification code to continue." : resetStep === "code" ? "Enter your 6-digit code and choose a new password." : resettingPassword ? "We'll email you a code to reset your password." : "A quiet place for your prayers."}</Text>
+      {!verifying && !resettingPassword && <>
         <Pressable accessibilityRole="button" style={[styles.button, { borderColor: c.border }]} disabled={loading} onPress={() => run(() => social("oauth_apple"))}>
           <Text style={{ color: c.ink }}>Continue with Apple</Text>
         </Pressable>
@@ -117,19 +172,36 @@ export function AuthScreen({ signUpMode = false }: { signUpMode?: boolean }) {
         <Text style={[styles.subtitle, { color: c.muted }]}>or continue with email</Text>
         <TextInput accessibilityLabel="Email address" placeholder="Email address" placeholderTextColor={c.muted} autoCapitalize="none" keyboardType="email-address" autoComplete="email" value={email} onChangeText={setEmail} style={inputStyle} />
         <TextInput accessibilityLabel="Password" placeholder="Password" placeholderTextColor={c.muted} secureTextEntry autoComplete={signUpMode ? "new-password" : "current-password"} value={password} onChangeText={setPassword} style={inputStyle} />
+        {!signUpMode && <Pressable accessibilityRole="link" disabled={loading} onPress={() => {
+          setError("");
+          setCode("");
+          setPassword("");
+          setResetStep("email");
+        }}>
+          <Text style={[styles.link, { color: c.warmBrown }]}>Forgot password?</Text>
+        </Pressable>}
       </>}
       {verifying && <TextInput accessibilityLabel="Verification code" placeholder="Verification code" placeholderTextColor={c.muted} keyboardType="number-pad" autoComplete="one-time-code" value={code} onChangeText={setCode} style={inputStyle} />}
+      {resetStep === "email" && <TextInput accessibilityLabel="Email address" placeholder="Email address" placeholderTextColor={c.muted} autoCapitalize="none" keyboardType="email-address" autoComplete="email" value={email} onChangeText={setEmail} style={inputStyle} />}
+      {resetStep === "code" && <>
+        <TextInput accessibilityLabel="6-digit reset code" placeholder="6-digit code" placeholderTextColor={c.muted} keyboardType="number-pad" autoComplete="one-time-code" value={code} onChangeText={setCode} style={inputStyle} />
+        <TextInput accessibilityLabel="New password" placeholder="New password" placeholderTextColor={c.muted} secureTextEntry autoComplete="new-password" value={password} onChangeText={setPassword} style={inputStyle} />
+      </>}
       {messages.map((message, index) => <Text key={index} accessibilityRole="alert" style={{ color: c.destructive }}>{message}</Text>)}
-      <Pressable testID="auth-submit" accessibilityRole="button" style={[styles.button, { backgroundColor: c.gold, borderColor: c.gold }]} disabled={loading || (verifying ? !code : !email || !password)} onPress={() => run(submit)}>
-        {loading ? <ActivityIndicator color={c.ink} /> : <Text style={{ color: c.ink, fontFamily: "Lato_700Bold" }}>{verifying ? "Verify" : signUpMode ? "Create account" : "Sign in"}</Text>}
+      <Pressable testID="auth-submit" accessibilityRole="button" style={[styles.button, { backgroundColor: c.gold, borderColor: c.gold }]} disabled={loading || (verifying ? !code : resetStep === "email" ? !email : resetStep === "code" ? !code || !password : !email || !password)} onPress={() => run(submit)}>
+        {loading ? <ActivityIndicator color={c.ink} /> : <Text style={{ color: c.ink, fontFamily: "Lato_700Bold" }}>{verifying ? "Verify" : resetStep === "email" ? "Send code" : resetStep === "code" ? "Reset password" : signUpMode ? "Create account" : "Sign in"}</Text>}
       </Pressable>
       {verifying && <Pressable onPress={() => run(async () => {
         if (signUpMode) await signUp.verifications.sendEmailCode();
         else await signIn.mfa.sendEmailCode();
       })}><Text style={{ color: c.gold }}>Send a new code</Text></Pressable>}
-      <Pressable accessibilityRole="link" onPress={() => router.replace((signUpMode ? "/sign-in" : "/sign-up") as Href)}>
-        <Text style={[styles.link, { color: c.warmBrown }]}>{signUpMode ? "Already have an account? Sign in" : "New here? Create an account"}</Text>
-      </Pressable>
+      {resettingPassword
+        ? <Pressable accessibilityRole="link" disabled={loading} onPress={() => run(backToSignIn)}>
+          <Text style={[styles.link, { color: c.warmBrown }]}>Back to sign in</Text>
+        </Pressable>
+        : <Pressable accessibilityRole="link" onPress={() => router.replace((signUpMode ? "/sign-in" : "/sign-up") as Href)}>
+          <Text style={[styles.link, { color: c.warmBrown }]}>{signUpMode ? "Already have an account? Sign in" : "New here? Create an account"}</Text>
+        </Pressable>}
       <Pressable accessibilityRole="link" onPress={() => router.replace("/")}><Text style={[styles.link, { color: c.muted }]}>Continue browsing</Text></Pressable>
       <View nativeID="clerk-captcha" />
     </KeyboardAwareScrollView>

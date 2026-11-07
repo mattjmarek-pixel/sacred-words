@@ -45,18 +45,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GeneratedPrayer"
-        "402":
+        "403":
           description: Free tier monthly limit reached
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/FreeTierLimitReached"
-        "403":
-          description: Selected tradition requires a premium subscription
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PremiumTraditionLocked"
 
   /prayers/submit:
     post:
@@ -114,6 +108,7 @@ paths:
           required: false
           schema:
             type: string
+            enum: [All, Catholic, Christian, Universal, Jewish, Islamic, Secular]
             default: All
       responses:
         "200":
@@ -293,6 +288,7 @@ components:
       properties:
         tradition:
           type: string
+          enum: [Catholic, Christian, Universal, Jewish, Islamic, Secular]
         intentions:
           type: array
           items:
@@ -330,17 +326,6 @@ components:
         - error
         - count
         - limit
-
-    PremiumTraditionLocked:
-      type: object
-      properties:
-        error:
-          type: string
-        tradition:
-          type: string
-      required:
-        - error
-        - tradition
 
     PrayerUsage:
       type: object
@@ -447,7 +432,7 @@ components:
           maxLength: 80
         tradition:
           type: string
-          minLength: 1
+          enum: [Catholic, Christian, Universal, Jewish, Islamic, Secular]
         intention:
           type: string
           minLength: 1

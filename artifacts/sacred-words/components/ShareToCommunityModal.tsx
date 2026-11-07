@@ -20,21 +20,7 @@ import {
 import type { CommunityPrayer } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAppAuth } from "@/lib/useAppAuth";
-
-const TRADITIONS = [
-  "Universal",
-  "Christian",
-  "Catholic",
-  "Jewish",
-  "Islamic",
-  "Secular",
-  "Buddhist",
-  "Hindu",
-  "Sikh",
-  "Orthodox Christian",
-  "Bahá'í",
-  "Taoist",
-];
+import { LAUNCH_TRADITIONS, normalizeLaunchTradition, type LaunchTradition } from "@/lib/traditions";
 
 interface ShareToCommunityModalProps {
   visible: boolean;
@@ -64,7 +50,7 @@ export function ShareToCommunityModal({
   const queryClient = useQueryClient();
 
   const [title, setTitle] = useState(initialTitle);
-  const [tradition, setTradition] = useState(initialTradition);
+  const [tradition, setTradition] = useState<LaunchTradition>(normalizeLaunchTradition(initialTradition));
 
   const submitMutation = useSubmitCommunityPrayer();
   const { isAuthenticated, login } = useAppAuth();
@@ -73,7 +59,7 @@ export function ShareToCommunityModal({
   useEffect(() => {
     if (visible) {
       setTitle(initialTitle);
-      setTradition(initialTradition);
+      setTradition(normalizeLaunchTradition(initialTradition));
       setNeedsLogin(false);
       submitMutation.reset();
     }
@@ -91,7 +77,7 @@ export function ShareToCommunityModal({
       const result = await submitMutation.mutateAsync({
         data: {
           title: title.trim(),
-          tradition: tradition.trim() || "Universal",
+          tradition,
           intention: initialIntention || "Reflection",
           text: prayerText,
         },
@@ -192,17 +178,17 @@ export function ShareToCommunityModal({
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.chips}
           >
-            {TRADITIONS.map((t) => (
+            {LAUNCH_TRADITIONS.map(({ value, label }) => (
               <Pressable
-                key={t}
-                onPress={() => setTradition(t)}
+                key={value}
+                onPress={() => setTradition(value)}
                 accessibilityRole="radio"
-                accessibilityState={{ selected: tradition === t }}
+                accessibilityState={{ selected: tradition === value }}
                 style={[
                   styles.chip,
                   {
-                    backgroundColor: tradition === t ? colors.gold : colors.parchment,
-                    borderColor: tradition === t ? colors.gold : colors.border,
+                    backgroundColor: tradition === value ? colors.gold : colors.parchment,
+                    borderColor: tradition === value ? colors.gold : colors.border,
                   },
                 ]}
               >
@@ -210,12 +196,12 @@ export function ShareToCommunityModal({
                   style={[
                     styles.chipText,
                     {
-                      color: tradition === t ? "#fff" : colors.ink,
-                      fontFamily: tradition === t ? "Lato_700Bold" : "Lato_400Regular",
+                      color: tradition === value ? "#fff" : colors.ink,
+                      fontFamily: tradition === value ? "Lato_700Bold" : "Lato_400Regular",
                     },
                   ]}
                 >
-                  {t}
+                  {label}
                 </Text>
               </Pressable>
             ))}

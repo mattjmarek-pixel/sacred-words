@@ -28,7 +28,6 @@ import type {
   GetBrowsePrayersParams,
   HealthStatus,
   PrayerUsage,
-  PremiumTraditionLocked,
   ReportCommunityPrayerRequest,
   SubmitCommunityPrayerRequest,
 } from "./api.schemas";
@@ -138,7 +137,7 @@ export const generatePrayer = async (
 };
 
 export const getGeneratePrayerMutationOptions = <
-  TError = ErrorType<FreeTierLimitReached | PremiumTraditionLocked>,
+  TError = ErrorType<FreeTierLimitReached>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -179,15 +178,13 @@ export type GeneratePrayerMutationResult = NonNullable<
   Awaited<ReturnType<typeof generatePrayer>>
 >;
 export type GeneratePrayerMutationBody = BodyType<GeneratePrayerRequest>;
-export type GeneratePrayerMutationError = ErrorType<
-  FreeTierLimitReached | PremiumTraditionLocked
->;
+export type GeneratePrayerMutationError = ErrorType<FreeTierLimitReached>;
 
 /**
  * @summary Generate a prayer using AI
  */
 export const useGeneratePrayer = <
-  TError = ErrorType<FreeTierLimitReached | PremiumTraditionLocked>,
+  TError = ErrorType<FreeTierLimitReached>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<

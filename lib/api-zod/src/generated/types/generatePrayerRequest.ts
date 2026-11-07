@@ -5,9 +5,10 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { GeneratePrayerRequestTradition } from "./generatePrayerRequestTradition";
 
 export interface GeneratePrayerRequest {
-  tradition: string;
+  tradition: GeneratePrayerRequestTradition;
   intentions: string[];
   tone: string;
   context?: string;

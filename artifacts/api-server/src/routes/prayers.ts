@@ -9,7 +9,7 @@ import {
   userPremiumStatusTable,
 } from "@workspace/db";
 import type { CommunityPrayer, CommunityPrayerStatus } from "@workspace/db";
-import { and, eq, gte, notExists, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, notExists, sql } from "drizzle-orm";
 import { createClient } from "@replit/revenuecat-sdk/client";
 import { listCustomerActiveEntitlements } from "@replit/revenuecat-sdk";
 import type { Request, Response } from "express";
@@ -19,29 +19,21 @@ const router = Router();
 const FREE_LIMIT = 3;
 
 const TRADITION_ALLOWLIST = [
-  { name: "Universal", tier: "free" },
-  { name: "Christian", tier: "free" },
-  { name: "Catholic", tier: "free" },
-  { name: "Jewish", tier: "free" },
-  { name: "Islamic", tier: "free" },
-  { name: "Secular", tier: "free" },
-  { name: "Buddhist", tier: "premium" },
-  { name: "Hindu", tier: "premium" },
-  { name: "Sikh", tier: "premium" },
-  { name: "Orthodox Christian", tier: "premium" },
-  { name: "Bahá'í", tier: "premium" },
-  { name: "Taoist", tier: "premium" },
+  "Catholic",
+  "Christian",
+  "Universal",
+  "Jewish",
+  "Islamic",
+  "Secular",
 ] as const;
 
-// Re-add Indigenous & Land-Based Traditions here when it is reinstated after review.
 function resolveTradition(value: unknown): (typeof TRADITION_ALLOWLIST)[number] | null {
   if (typeof value !== "string") return null;
 
   const normalized = value.trim().normalize("NFC").replace(/’/g, "'").toLowerCase();
   return (
-    TRADITION_ALLOWLIST.find(
-      ({ name }) => name.normalize("NFC").replace(/’/g, "'").toLowerCase() === normalized,
-    ) ?? null
+    TRADITION_ALLOWLIST.find((name) => name.normalize("NFC").replace(/’/g, "'").toLowerCase() === normalized) ??
+    null
   );
 }
 
@@ -377,17 +369,12 @@ router.post("/prayers/generate", async (req: Request, res: Response) => {
     res.status(400).json({ error: "invalid_tradition" });
     return;
   }
-  const tradition = traditionEntry.name;
+  const tradition = traditionEntry;
 
   // Enforce limits unless premium is positively established (true).
   // false = confirmed free; null = unknown (no DB record + RC down) → treated as free.
   // Previously-confirmed premium users return true from their DB record, so they are never blocked.
   const isPremium = await checkPremiumServerSide(userId);
-
-  if (traditionEntry.tier === "premium" && isPremium !== true) {
-    res.status(403).json({ error: "premium_tradition_locked", tradition });
-    return;
-  }
 
   let slotReserved = false;
   if (isPremium !== true) {
@@ -431,6 +418,7 @@ Address Allah by one or more of the 99 Beautiful Names appropriate to the intent
 Use "Ya Allah" or "O Allah" naturally in direct address. Weave in Quranic phrasing where it feels organic. Draw on the concepts of tawakkul (trust in Allah), sabr (patient perseverance), shukr (gratitude), and istighfar (seeking forgiveness) where they fit.
 Close with a "Rabbana" petition (O our Lord…) and "Ameen."`,
 
+    // Held pending review: retain these voice guides, but keep their values out of TRADITION_ALLOWLIST.
     Buddhist: `This prayer is rooted in Buddhist practice and must sound unmistakably so. Do not address a personal God — no "Lord," no "God."
 Choose the form that best fits the intention:
 — For peace, compassion, or lovingkindness: use metta (loving-kindness) language and the Four Immeasurables as your structural anchor: "May all beings be happy (sukha); may all beings be free from suffering (dukkha); may all beings rejoice in the well-being of others (mudita); may all beings abide in equanimity (upekkha)." You need not recite all four — let the intention guide which to foreground.
@@ -474,6 +462,7 @@ The voice is reflective and unhurried rather than beseeching. Rather than asking
 Where classical cadence helps, echo the spirit of the Tao Te Ching's paradoxical, spare style — short clauses, natural imagery standing in for abstraction, wisdom offered through observation rather than command.
 Close by resting in the Tao rather than demanding resolution: an image of water finding its level, of the valley receiving all streams, or simply a settling into quiet acceptance.`,
 
+    // Held pending review; retained for existing curated community prayers.
     "Indigenous & Land-Based Traditions": `This prayer is rooted in Indigenous spiritual relationship with the living world and must feel unmistakably so. It is spoken aloud, in circle, in the present tense, with the land as witness.
 Address specific presences — do not speak to a distant God or to "nature" in the abstract. Address the four directions (East, South, West, North) by their gifts; address the Earth as a living grandmother; address specific elements: Water that remembers, Fire that transforms, Wind that carries, Stone that endures. Address the Ancestors by their presence, not their absence.
 The prayer must enact reciprocity: name what has been received and offer something in return — gratitude, attention, care, a promise of stewardship. We are not separate from this web; we are accountable to it.
@@ -616,7 +605,7 @@ async function handleCommunityPrayerSubmission(req: Request, res: Response) {
         .insert(communityPrayersTable)
         .values({
           title,
-          tradition: traditionEntry.name,
+          tradition: traditionEntry,
           intention,
           text,
           isUserSubmitted: true,
@@ -778,7 +767,10 @@ router.post("/prayers/:id/block-author", async (req: Request, res: Response) => 
 router.get("/prayers/browse", async (req: Request, res: Response) => {
   try {
     const tradition = req.query["tradition"] as string | undefined;
-    const conditions = [eq(communityPrayersTable.status, "approved")];
+    const conditions = [
+      eq(communityPrayersTable.status, "approved"),
+      inArray(communityPrayersTable.tradition, TRADITION_ALLOWLIST),
+    ];
     if (tradition && tradition !== "All") {
       conditions.push(eq(communityPrayersTable.tradition, tradition));
     }

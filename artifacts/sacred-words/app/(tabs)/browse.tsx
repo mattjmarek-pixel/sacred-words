@@ -32,8 +32,10 @@ import { useShareAsImage } from "@/hooks/useShareAsImage";
 import { ShareOptionsModal } from "@/components/ShareOptionsModal";
 import PrayerShareCard from "@/components/PrayerShareCard";
 import type { CommunityPrayerBrowseItem } from "@workspace/api-client-react";
+import { getTraditionLabel, LAUNCH_TRADITIONS, type LaunchTradition } from "@/lib/traditions";
 
-const TRADITION_FILTERS = ["All", "Universal", "Christian", "Catholic", "Jewish", "Islamic", "Buddhist", "Hindu", "Indigenous", "Secular"];
+type BrowseTradition = "All" | LaunchTradition;
+const TRADITION_FILTERS: BrowseTradition[] = ["All", ...LAUNCH_TRADITIONS.map(({ value }) => value)];
 const REPORT_REASONS = ["Offensive", "Spam", "Disrespectful to a faith", "Other"] as const;
 
 interface CommunityPrayerCardProps {
@@ -74,7 +76,7 @@ function CommunityPrayerCard({ prayer, onPress }: CommunityPrayerCardProps) {
         <View style={styles.cardBadges}>
           <View style={[styles.badge, { backgroundColor: colors.sageLight }]}>
             <Text style={[styles.badgeText, { color: colors.sage, fontFamily: "Lato_700Bold" }]}>
-              {prayer.tradition}
+              {getTraditionLabel(prayer.tradition)}
             </Text>
           </View>
           <View style={[styles.badge, { backgroundColor: colors.goldLight }]}>
@@ -100,7 +102,7 @@ export default function BrowseScreen() {
   const { toast, showToast } = useToast();
   const queryClient = useQueryClient();
   const { user, isAuthenticated, isLoading: authLoading, login } = useAppAuth();
-  const [selectedTradition, setSelectedTradition] = useState("All");
+  const [selectedTradition, setSelectedTradition] = useState<BrowseTradition>("All");
   const [selectedPrayer, setSelectedPrayer] = useState<CommunityPrayerBrowseItem | null>(null);
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [hiddenPrayerIds, setHiddenPrayerIds] = useState<number[]>([]);
@@ -301,7 +303,7 @@ export default function BrowseScreen() {
                   },
                 ]}
               >
-                {filter}
+                {getTraditionLabel(filter)}
               </Text>
             </Pressable>
           ))}
@@ -371,7 +373,7 @@ export default function BrowseScreen() {
             <View style={styles.modalBadges}>
               <View style={[styles.badge, { backgroundColor: colors.sageLight }]}>
                 <Text style={[styles.badgeText, { color: colors.sage, fontFamily: "Lato_700Bold" }]}>
-                  {selectedPrayer?.tradition}
+                  {selectedPrayer ? getTraditionLabel(selectedPrayer.tradition) : ""}
                 </Text>
               </View>
               <View style={[styles.badge, { backgroundColor: colors.goldLight }]}>

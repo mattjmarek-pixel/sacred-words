@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SubmitCommunityPrayerRequestTradition } from "./submitCommunityPrayerRequestTradition";
 
 export interface SubmitCommunityPrayerRequest {
   /**
@@ -12,8 +13,7 @@ export interface SubmitCommunityPrayerRequest {
    * @maxLength 80
    */
   title: string;
-  /** @minLength 1 */
-  tradition: string;
+  tradition: SubmitCommunityPrayerRequestTradition;
   /** @minLength 1 */
   intention: string;
   /**

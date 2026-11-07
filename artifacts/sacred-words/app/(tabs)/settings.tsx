@@ -18,6 +18,7 @@ import { useTheme, type ThemePreference } from "@/lib/theme";
 import { Toast } from "@/components/Toast";
 import { SignOutSheet } from "@/components/SignOutSheet";
 import { getMostUsedTradition } from "@/hooks/useTraditionHistory";
+import { getTraditionLabel } from "@/lib/traditions";
 import { loadStreak } from "@/hooks/useStreak";
 import { useAppAuth } from "@/lib/useAppAuth";
 import {
@@ -200,7 +201,7 @@ export default function SettingsScreen() {
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.stat}>
               <Text style={[styles.statValue, { color: colors.sage, fontFamily: "PlayfairDisplay_600SemiBold" }]}>
-                {mostUsedTradition}
+                {getTraditionLabel(mostUsedTradition)}
               </Text>
               <Text style={[styles.statLabel, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
                 Favourite Tradition
@@ -383,6 +384,9 @@ export default function SettingsScreen() {
           </Text>
           <Text style={[styles.aboutText, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
             A multi-faith prayer companion. Build meaningful prayers, save them to your personal library, and discover prayers from the global community.
+          </Text>
+          <Text style={[styles.aboutText, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
+            Prayers are written by AI in the spirit of each tradition. They aren't official prayers of any faith.
           </Text>
           <Text style={[styles.version, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
             Version 1.0.0

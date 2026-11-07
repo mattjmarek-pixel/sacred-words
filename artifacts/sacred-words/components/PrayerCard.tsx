@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import type { SavedPrayer } from "@/hooks/useDatabase";
+import { getTraditionLabel } from "@/lib/traditions";
 
 interface PrayerCardProps {
   prayer: SavedPrayer | {
@@ -76,7 +77,7 @@ export function PrayerCard({ prayer, onPress }: PrayerCardProps) {
                   { color: colors.sage, fontFamily: "Lato_700Bold" },
                 ]}
               >
-                {prayer.tradition}
+                {getTraditionLabel(prayer.tradition)}
               </Text>
             </View>
             <Text style={[styles.date, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>

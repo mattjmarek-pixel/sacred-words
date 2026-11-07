@@ -19,7 +19,14 @@ export const HealthCheckResponse = zod.object({
  * @summary Generate a prayer using AI
  */
 export const GeneratePrayerBody = zod.object({
-  tradition: zod.string(),
+  tradition: zod.enum([
+    "Catholic",
+    "Christian",
+    "Universal",
+    "Jewish",
+    "Islamic",
+    "Secular",
+  ]),
   intentions: zod.array(zod.string()),
   tone: zod.string(),
   context: zod.string().optional(),
@@ -48,7 +55,14 @@ export const submitPrayerBodyTextMax = 2000;
 
 export const SubmitPrayerBody = zod.object({
   title: zod.string().min(1).max(submitPrayerBodyTitleMax),
-  tradition: zod.string().min(1),
+  tradition: zod.enum([
+    "Catholic",
+    "Christian",
+    "Universal",
+    "Jewish",
+    "Islamic",
+    "Secular",
+  ]),
   intention: zod.string().min(1),
   text: zod.string().min(1).max(submitPrayerBodyTextMax),
 });
@@ -59,7 +73,17 @@ export const SubmitPrayerBody = zod.object({
 export const getBrowsePrayersQueryTraditionDefault = `All`;
 
 export const GetBrowsePrayersQueryParams = zod.object({
-  tradition: zod.coerce.string().default(getBrowsePrayersQueryTraditionDefault),
+  tradition: zod
+    .enum([
+      "All",
+      "Catholic",
+      "Christian",
+      "Universal",
+      "Jewish",
+      "Islamic",
+      "Secular",
+    ])
+    .default(getBrowsePrayersQueryTraditionDefault),
 });
 
 export const GetBrowsePrayersResponse = zod.object({
@@ -96,7 +120,14 @@ export const submitCommunityPrayerBodyTextMax = 2000;
 
 export const SubmitCommunityPrayerBody = zod.object({
   title: zod.string().min(1).max(submitCommunityPrayerBodyTitleMax),
-  tradition: zod.string().min(1),
+  tradition: zod.enum([
+    "Catholic",
+    "Christian",
+    "Universal",
+    "Jewish",
+    "Islamic",
+    "Secular",
+  ]),
   intention: zod.string().min(1),
   text: zod.string().min(1).max(submitCommunityPrayerBodyTextMax),
 });

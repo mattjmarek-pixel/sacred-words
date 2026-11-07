@@ -25,6 +25,7 @@ import PrayerShareCard from "@/components/PrayerShareCard";
 import { useShareAsImage } from "@/hooks/useShareAsImage";
 import { useAppAuth } from "@/lib/useAppAuth";
 import { useSubscription } from "@/lib/revenuecat";
+import { getTraditionLabel } from "@/lib/traditions";
 import {
   getGetPrayerUsageQueryKey,
   useGetPrayerUsage,
@@ -231,7 +232,7 @@ export default function PrayerDetailScreen() {
         <View style={styles.metaRow}>
           <View style={[styles.badge, { backgroundColor: colors.sageLight }]}>
             <Text style={[styles.badgeText, { color: colors.sage, fontFamily: "Lato_700Bold" }]}>
-              {prayer.tradition}
+              {getTraditionLabel(prayer.tradition)}
             </Text>
           </View>
           {prayer.intention ? (

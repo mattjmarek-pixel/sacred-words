@@ -16,6 +16,7 @@ import * as Haptics from "expo-haptics";
 import { useQueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
 import { ChipSelector } from "@/components/ChipSelector";
+import { TraditionPicker } from "@/components/TraditionPicker";
 import { Toast } from "@/components/Toast";
 import { useToast } from "@/hooks/useToast";
 import { savePrayer } from "@/hooks/useDatabase";
@@ -31,28 +32,8 @@ import { useShareAsImage } from "@/hooks/useShareAsImage";
 import { MilestoneModal } from "@/components/MilestoneModal";
 import { useStreak, MILESTONE_DAYS } from "@/hooks/useStreak";
 import { recordTraditionUsed, getMostUsedTradition } from "@/hooks/useTraditionHistory";
+import { getTraditionLabel, normalizeLaunchTradition, type LaunchTradition } from "@/lib/traditions";
 
-interface TraditionOption {
-  name: string;
-  tier: "free" | "premium";
-}
-
-const TRADITIONS: TraditionOption[] = [
-  { name: "Universal", tier: "free" },
-  { name: "Christian", tier: "free" },
-  { name: "Catholic", tier: "free" },
-  { name: "Jewish", tier: "free" },
-  { name: "Islamic", tier: "free" },
-  { name: "Secular", tier: "free" },
-  { name: "Buddhist", tier: "premium" },
-  { name: "Hindu", tier: "premium" },
-  { name: "Sikh", tier: "premium" },
-  { name: "Orthodox Christian", tier: "premium" },
-  { name: "Bahá'í", tier: "premium" },
-  { name: "Taoist", tier: "premium" },
-];
-
-const TRADITION_NAMES = TRADITIONS.map((t) => t.name);
 const INTENTIONS = ["Gratitude", "Healing", "Guidance", "Strength", "Grief", "Protection", "Peace", "Celebration", "Hope", "Forgiveness"];
 const TONES = ["Contemplative", "Joyful", "Sorrowful", "Urgent", "Gentle", "Bold", "Quiet"];
 
@@ -78,10 +59,10 @@ export default function BuildScreen() {
     }, [refreshStreak])
   );
 
-  const [tradition, setTradition] = useState("Universal");
+  const [tradition, setTradition] = useState<LaunchTradition>("Universal");
 
   useEffect(() => {
-    getMostUsedTradition().then(setTradition);
+    getMostUsedTradition().then((value) => setTradition(normalizeLaunchTradition(value)));
   }, []);
 
   const usageQuery = useGetPrayerUsage({
@@ -91,10 +72,6 @@ export default function BuildScreen() {
   const genCount = usageQuery.data?.generationsThisMonth ?? 0;
   const serverIsPremium = usageQuery.data?.isPremium ?? false;
   const effectivePremium = isPremium || serverIsPremium;
-
-  const lockedTraditions = effectivePremium
-    ? []
-    : TRADITIONS.filter((t) => t.tier === "premium").map((t) => t.name);
 
   const [intentions, setIntentions] = useState<string[]>([]);
   const [tone, setTone] = useState("");
@@ -111,7 +88,7 @@ export default function BuildScreen() {
   const generateMutation = useGeneratePrayer();
   const { cardRef, isCapturing, shareAsImage, saveToLibrary } = useShareAsImage();
 
-  const resolvedTitle = prayerTitle.trim() || `${tradition} prayer for ${intentions[0] ?? "reflection"}`;
+  const resolvedTitle = prayerTitle.trim() || `${getTraditionLabel(tradition)} prayer for ${intentions[0] ?? "reflection"}`;
 
   const handleIntentionSelect = (value: string) => {
     setIntentions((prev) => {
@@ -129,12 +106,6 @@ export default function BuildScreen() {
     }
 
     if (!effectivePremium && genCount >= FREE_LIMIT) {
-      setPaywallVisible(true);
-      return;
-    }
-
-    const selectedTier = TRADITIONS.find((t) => t.name === tradition)?.tier ?? "free";
-    if (selectedTier === "premium" && !effectivePremium) {
       setPaywallVisible(true);
       return;
     }
@@ -385,15 +356,13 @@ export default function BuildScreen() {
         )}
 
         {sectionLabel("Your tradition", "①")}
-        <ChipSelector
-          options={TRADITION_NAMES}
+        <TraditionPicker
           selected={tradition}
           onSelect={setTradition}
-          variant="gold"
-          horizontal
-          lockedOptions={lockedTraditions}
-          onLockedPress={() => setPaywallVisible(true)}
         />
+        <Text style={[styles.traditionNote, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
+          More traditions coming soon.
+        </Text>
 
         <View style={styles.sectionGap} />
 
@@ -535,6 +504,9 @@ export default function BuildScreen() {
             >
               {generatedPrayer}
             </Text>
+            <Text style={[styles.prayerNote, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
+              Written by AI in the spirit of this tradition. Not an official prayer.
+            </Text>
 
             <View style={styles.actionGrid}>
               <Pressable
@@ -609,6 +581,16 @@ export default function BuildScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flexGrow: 1 },
+  traditionNote: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  prayerNote: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
   signInBanner: {
     marginHorizontal: 20,
     marginBottom: 20,

@@ -1,0 +1,12 @@
+.sw-icon-preview {
+  width: 100%;
+  min-height: 350px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.sw-icon-preview * {
+  box-sizing: inherit;
+}

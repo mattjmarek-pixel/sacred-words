@@ -5,7 +5,8 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { GetBrowsePrayersTradition } from "./getBrowsePrayersTradition";
 
 export type GetBrowsePrayersParams = {
-  tradition?: string;
+  tradition?: GetBrowsePrayersTradition;
 };

@@ -99,10 +99,10 @@ try {
   const limited = await api("/prayers/generate", reader.jwt, { tradition: "Universal", intentions: ["Peace"], tone: "Gentle" });
   assert.equal(limited.status, 403);
   assert.equal(limited.data.error, "free_limit_reached");
-  const locked = await api("/prayers/generate", reader.jwt, { tradition: "Buddhist", intentions: ["Peace"], tone: "Gentle" });
-  assert.equal(locked.status, 403);
-  assert.equal(locked.data.error, "premium_tradition_locked");
-  console.log("PASS: premium checks and free-tier generation limit preserved");
+  const unavailableTradition = await api("/prayers/generate", reader.jwt, { tradition: "Buddhist", intentions: ["Peace"], tone: "Gentle" });
+  assert.equal(unavailableTradition.status, 400);
+  assert.equal(unavailableTradition.data.error, "invalid_tradition");
+  console.log("PASS: premium community checks, free-tier generation limit, and hidden tradition rejection preserved");
 
   // The existing premium fallback supports isolated Development test entitlements.
   await db.insert(userPremiumStatusTable).values({ userId: authorId, isPremium: true })
