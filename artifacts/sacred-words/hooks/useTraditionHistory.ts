@@ -23,3 +23,7 @@ export async function getMostUsedTradition(): Promise<string> {
   entries.sort((a, b) => b[1] - a[1]);
   return entries[0][0];
 }
+
+export async function clearTraditionHistory(): Promise<void> {
+  await AsyncStorage.removeItem(TRADITION_HISTORY_KEY);
+}

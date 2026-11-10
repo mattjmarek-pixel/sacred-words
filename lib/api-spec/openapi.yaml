@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: account
+    description: Account operations
   - name: prayers
     description: Prayer operations
 paths:
@@ -26,6 +28,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /account:
+    delete:
+      operationId: deleteAccount
+      tags: [account]
+      summary: Delete the signed-in user's account and app data
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+      responses:
+        "200":
+          description: Account and associated app data deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountDeletionResult"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
 
   /prayers/generate:
     post:
@@ -282,6 +305,15 @@ components:
           type: string
       required:
         - status
+
+    AccountDeletionResult:
+      type: object
+      properties:
+        deleted:
+          type: boolean
+          const: true
+      required:
+        - deleted
 
     GeneratePrayerRequest:
       type: object

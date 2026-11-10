@@ -87,6 +87,10 @@ export async function getPrayerHistory(): Promise<string[]> {
   return (JSON.parse(raw) as string[]).slice().reverse();
 }
 
+export async function clearStreak(): Promise<void> {
+  await AsyncStorage.multiRemove([STREAK_KEY, LAST_ACTIVITY_KEY]);
+}
+
 export function useStreak() {
   const [streak, setStreak] = useState(0);
   const [lastActivity, setLastActivity] = useState<string | null>(null);

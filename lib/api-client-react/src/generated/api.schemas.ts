@@ -9,6 +9,11 @@ export interface HealthStatus {
   status: string;
 }
 
+export const AccountDeletionResultValue = {
+  deleted: true,
+} as const;
+export type AccountDeletionResult = typeof AccountDeletionResultValue;
+
 export type GeneratePrayerRequestTradition =
   (typeof GeneratePrayerRequestTradition)[keyof typeof GeneratePrayerRequestTradition];
 

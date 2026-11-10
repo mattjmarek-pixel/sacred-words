@@ -12,6 +12,7 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useQueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
@@ -43,6 +44,8 @@ export default function BuildScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { toast, showToast } = useToast();
+  const router = useRouter();
+  const { accountDeleted } = useLocalSearchParams<{ accountDeleted?: string }>();
   const { isAuthenticated, isLoading: authLoading, login } = useAppAuth();
   const { isPremium } = useSubscription();
   const queryClient = useQueryClient();
@@ -58,6 +61,13 @@ export default function BuildScreen() {
       refreshStreak();
     }, [refreshStreak])
   );
+
+  useEffect(() => {
+    if (accountDeleted === "true") {
+      showToast("Your account has been deleted.");
+      router.setParams({ accountDeleted: undefined });
+    }
+  }, [accountDeleted, router, showToast]);
 
   const [tradition, setTradition] = useState<LaunchTradition>("Universal");
 

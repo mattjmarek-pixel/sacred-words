@@ -16,6 +16,22 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
+ * @summary Delete the signed-in user's account and app data
+ */
+export const DeleteAccountHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Clerk session JWT for native mobile requests. Web requests use cookies.",
+    ),
+});
+
+export const DeleteAccountResponse = zod.object({
+  deleted: zod.boolean(),
+});
+
+/**
  * @summary Generate a prayer using AI
  */
 export const GeneratePrayerBody = zod.object({

@@ -17,6 +17,10 @@ import { useToast } from "@/hooks/useToast";
 import { useTheme, type ThemePreference } from "@/lib/theme";
 import { Toast } from "@/components/Toast";
 import { SignOutSheet } from "@/components/SignOutSheet";
+import { DeleteAccountSheet } from "@/components/DeleteAccountSheet";
+import { clearLocalAccountData } from "@/lib/accountData";
+import { useDeleteAccount } from "@workspace/api-client-react";
+import { useRouter } from "expo-router";
 import { getMostUsedTradition } from "@/hooks/useTraditionHistory";
 import { getTraditionLabel } from "@/lib/traditions";
 import { loadStreak } from "@/hooks/useStreak";
@@ -61,9 +65,13 @@ export default function SettingsScreen() {
   const { toast, showToast } = useToast();
   const { preference: themePreference, setPreference: setThemePreference } = useTheme();
   const { user, isAuthenticated, logout } = useAppAuth();
+  const router = useRouter();
+  const deleteAccountMutation = useDeleteAccount();
 
   const [enabled, setEnabled] = useState(false);
   const [accountVisible, setAccountVisible] = useState(false);
+  const [deleteAccountVisible, setDeleteAccountVisible] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [selectedTime, setSelectedTime] = useState<ActiveNotificationTime>("morning");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -137,6 +145,38 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (deletingAccount) return;
+    setDeletingAccount(true);
+
+    try {
+      await deleteAccountMutation.mutateAsync();
+    } catch {
+      setDeletingAccount(false);
+      showToast("Could not delete your account. Please try again.", "error");
+      return;
+    }
+
+    try {
+      await clearLocalAccountData();
+    } catch (error) {
+      console.warn("Account data was deleted, but some local data could not be cleared.", error);
+    }
+
+    setStreak(0);
+    setMostUsedTradition("Universal");
+    setEnabled(false);
+    setSelectedTime("morning");
+    setDeleteAccountVisible(false);
+    try {
+      await logout();
+    } catch {
+      // The server has already removed the account; continue to the signed-out screen.
+    }
+    setDeletingAccount(false);
+    router.replace({ pathname: "/", params: { accountDeleted: "true" } });
+  };
+
   if (loading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.cream }]}>
@@ -153,6 +193,12 @@ export default function SettingsScreen() {
         user={user}
         onClose={() => setAccountVisible(false)}
         onSignOut={logout}
+      />
+      <DeleteAccountSheet
+        visible={deleteAccountVisible}
+        deleting={deletingAccount}
+        onClose={() => setDeleteAccountVisible(false)}
+        onConfirm={handleDeleteAccount}
       />
 
       <ScrollView
@@ -179,6 +225,16 @@ export default function SettingsScreen() {
               <Feather name="log-out" size={17} color={colors.destructive} />
               <Text style={[styles.accountSignOutText, { color: colors.destructive, fontFamily: "Lato_700Bold" }]}>
                 Sign out
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setDeleteAccountVisible(true)}
+              accessibilityRole="button"
+              style={styles.deleteAccountButton}
+            >
+              <Feather name="trash-2" size={16} color={colors.destructive} />
+              <Text style={[styles.deleteAccountText, { color: colors.destructive, fontFamily: "Lato_700Bold" }]}>
+                Delete account
               </Text>
             </Pressable>
           </View>
@@ -413,6 +469,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   accountSignOutText: { fontSize: 15 },
+  deleteAccountButton: {
+    minHeight: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  deleteAccountText: { fontSize: 14 },
 
   section: {
     borderRadius: 16,

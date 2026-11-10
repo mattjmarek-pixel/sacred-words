@@ -70,6 +70,18 @@ export async function saveNotificationPreferences(
   await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
 }
 
+export async function clearAccountNotificationData(): Promise<void> {
+  await Notifications.cancelAllScheduledNotificationsAsync().catch(() => undefined);
+  await AsyncStorage.multiRemove([
+    PREFS_KEY,
+    "sacred_words_notif_enabled",
+    "sacred_words_notif_hour",
+    "sacred_words_notif_minute",
+    "sacred_words_notification_prompt_shown",
+    "sacred_words_last_handled_notification_id",
+  ]);
+}
+
 export interface PrayerTeaserItem {
   id: number;
   title: string;

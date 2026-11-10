@@ -59,6 +59,10 @@ export async function deletePrayer(id: string): Promise<void> {
   await storePrayers(updated);
 }
 
+export async function clearSavedPrayers(): Promise<void> {
+  await AsyncStorage.removeItem(STORAGE_KEY);
+}
+
 export async function updatePrayerTitle(id: string, title: string): Promise<void> {
   const existing = await loadPrayers();
   const updated = existing.map((p) => (p.id === id ? { ...p, title } : p));
