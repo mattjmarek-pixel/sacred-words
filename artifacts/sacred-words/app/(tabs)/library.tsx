@@ -74,7 +74,7 @@ function EmptyState() {
         No prayers yet
       </Text>
       <Text style={[styles.emptySub, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
-        Generate your first prayer and it'll appear here
+        Prayers you save will appear here.
       </Text>
       <Pressable
         onPress={() => router.push("/")}

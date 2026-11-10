@@ -25,6 +25,7 @@ export * from "./getBrowsePrayersParams";
 export * from "./getBrowsePrayersTradition";
 export * from "./healthStatus";
 export * from "./prayerUsage";
+export * from "./refreshPremiumResult";
 export * from "./reportCommunityPrayerRequest";
 export * from "./reportCommunityPrayerRequestReason";
 export * from "./submitCommunityPrayerRequest";

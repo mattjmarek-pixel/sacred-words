@@ -8,7 +8,13 @@ import {
   Text,
   View,
 } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  getGetPrayerUsageQueryKey,
+  useRefreshPrayerPremium,
+} from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { useAppAuth } from "@/lib/useAppAuth";
 import { useSubscription } from "@/lib/revenuecat";
 
 interface PaywallScreenProps {
@@ -24,6 +30,9 @@ const BENEFITS = [
 
 export function PaywallScreen({ visible, onClose }: PaywallScreenProps) {
   const colors = useColors();
+  const queryClient = useQueryClient();
+  const refreshPremiumMutation = useRefreshPrayerPremium();
+  const { isAuthenticated } = useAppAuth();
   const {
     offerings,
     isPurchasing,
@@ -44,6 +53,20 @@ export function PaywallScreen({ visible, onClose }: PaywallScreenProps) {
 
   const isAvailable = isRcConfigured && !!monthlyPackage;
 
+  const refreshServerPremiumStatus = async () => {
+    if (isRcConfigured && isAuthenticated) {
+      try {
+        await refreshPremiumMutation.mutateAsync();
+      } catch (err) {
+        console.warn("[Paywall] Could not refresh server premium status:", err);
+      }
+    }
+    await queryClient.refetchQueries({
+      queryKey: getGetPrayerUsageQueryKey(),
+      type: "active",
+    });
+  };
+
   const handleClose = () => {
     setError(null);
     setRestored(false);
@@ -62,6 +85,7 @@ export function PaywallScreen({ visible, onClose }: PaywallScreenProps) {
     setError(null);
     try {
       await purchase(monthlyPackage);
+      await refreshServerPremiumStatus();
       handleClose();
     } catch (err: unknown) {
       const e = err as Record<string, unknown>;
@@ -75,6 +99,7 @@ export function PaywallScreen({ visible, onClose }: PaywallScreenProps) {
     setRestored(false);
     try {
       await restore();
+      await refreshServerPremiumStatus();
       setRestored(true);
       setTimeout(handleClose, 1200);
     } catch {

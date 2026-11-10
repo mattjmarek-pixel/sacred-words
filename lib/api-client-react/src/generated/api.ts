@@ -29,6 +29,7 @@ import type {
   GetBrowsePrayersParams,
   HealthStatus,
   PrayerUsage,
+  RefreshPremiumResult,
   ReportCommunityPrayerRequest,
   SubmitCommunityPrayerRequest,
 } from "./api.schemas";
@@ -807,3 +808,84 @@ export function useGetPrayerUsage<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Refresh the signed-in user's premium status after a purchase or restore
+ */
+export const getRefreshPrayerPremiumUrl = () => {
+  return `/api/prayers/refresh-premium`;
+};
+
+export const refreshPrayerPremium = async (
+  options?: RequestInit,
+): Promise<RefreshPremiumResult> => {
+  return customFetch<RefreshPremiumResult>(getRefreshPrayerPremiumUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRefreshPrayerPremiumMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshPrayerPremium>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof refreshPrayerPremium>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["refreshPrayerPremium"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof refreshPrayerPremium>>,
+    void
+  > = () => {
+    return refreshPrayerPremium(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RefreshPrayerPremiumMutationResult = NonNullable<
+  Awaited<ReturnType<typeof refreshPrayerPremium>>
+>;
+
+export type RefreshPrayerPremiumMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Refresh the signed-in user's premium status after a purchase or restore
+ */
+export const useRefreshPrayerPremium = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshPrayerPremium>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof refreshPrayerPremium>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getRefreshPrayerPremiumMutationOptions(options));
+};

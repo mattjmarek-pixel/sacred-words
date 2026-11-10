@@ -777,6 +777,18 @@ router.post("/prayers/:id/block-author", async (req: Request, res: Response) => 
   }
 });
 
+router.post("/prayers/refresh-premium", async (req: Request, res: Response) => {
+  if (!req.dbUser) {
+    res.status(401).json({ error: "Sign in to refresh premium status" });
+    return;
+  }
+
+  const userId = req.dbUser.id;
+  premiumCache.delete(userId);
+  const isPremium = await checkPremiumServerSide(userId);
+  res.status(200).json({ isPremium: isPremium === true });
+});
+
 router.get("/prayers/browse", async (req: Request, res: Response) => {
   try {
     const tradition = req.query["tradition"] as string | undefined;
@@ -826,14 +838,18 @@ router.get("/prayers/browse", async (req: Request, res: Response) => {
     });
   } catch {
     res.json({
-      prayers: SEED_PRAYERS.map((p, i) => ({
-        ...p,
-        id: i + 1,
-        isUserSubmitted: false,
-        status: "approved" as const,
-        hasSubmitter: false,
-        createdAt: new Date().toISOString(),
-      })),
+      prayers: SEED_PRAYERS
+        .filter((prayer) =>
+          TRADITION_ALLOWLIST.some((tradition) => tradition === prayer.tradition),
+        )
+        .map((p, i) => ({
+          ...p,
+          id: i + 1,
+          isUserSubmitted: false,
+          status: "approved" as const,
+          hasSubmitter: false,
+          createdAt: new Date().toISOString(),
+        })),
     });
   }
 });

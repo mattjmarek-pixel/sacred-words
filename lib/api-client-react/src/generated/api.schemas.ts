@@ -9,6 +9,10 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface RefreshPremiumResult {
+  isPremium: boolean;
+}
+
 export const AccountDeletionResultValue = {
   deleted: true,
 } as const;

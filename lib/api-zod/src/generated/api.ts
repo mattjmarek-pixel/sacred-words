@@ -212,3 +212,19 @@ export const GetPrayerUsageResponse = zod.object({
   month: zod.string(),
   isPremium: zod.boolean(),
 });
+
+/**
+ * @summary Refresh the signed-in user's premium status after a purchase or restore
+ */
+export const RefreshPrayerPremiumHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Clerk session JWT for native mobile requests. Web requests use cookies.",
+    ),
+});
+
+export const RefreshPrayerPremiumResponse = zod.object({
+  isPremium: zod.boolean(),
+});
