@@ -153,6 +153,7 @@ export default function SettingsScreen() {
       await deleteAccountMutation.mutateAsync();
     } catch {
       setDeletingAccount(false);
+      setDeleteAccountVisible(false);
       showToast("Could not delete your account. Please try again.", "error");
       return;
     }
