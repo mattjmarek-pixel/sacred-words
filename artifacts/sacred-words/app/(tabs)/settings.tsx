@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -25,6 +27,7 @@ import { getMostUsedTradition } from "@/hooks/useTraditionHistory";
 import { getTraditionLabel } from "@/lib/traditions";
 import { loadStreak } from "@/hooks/useStreak";
 import { useAppAuth } from "@/lib/useAppAuth";
+import { SUPPORT_EMAIL } from "@/constants/contact";
 import {
   getNotificationPreferences,
   saveNotificationPreferences,
@@ -144,6 +147,16 @@ export default function SettingsScreen() {
       applyPreferences(true, time);
     }
   };
+
+  const handleContactSupport = useCallback(async () => {
+    try {
+      await Linking.openURL(
+        `mailto:${SUPPORT_EMAIL}?subject=Sacred%20Words%20Support`,
+      );
+    } catch {
+      Alert.alert("Contact Support", `Email us at ${SUPPORT_EMAIL}`);
+    }
+  }, []);
 
   const handleDeleteAccount = async () => {
     if (deletingAccount) return;
@@ -433,6 +446,35 @@ export default function SettingsScreen() {
             Each notification features a title from the community prayer collection. Tap it to open that prayer in the Browse tab.
           </Text>
         </View>
+
+        <Pressable
+          onPress={handleContactSupport}
+          accessibilityRole="button"
+          accessibilityLabel={`Contact Support, ${SUPPORT_EMAIL}`}
+          style={({ pressed }) => [
+            styles.section,
+            {
+              backgroundColor: colors.parchment,
+              borderColor: colors.border,
+              opacity: pressed ? 0.75 : 1,
+            },
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIconWrap, { backgroundColor: colors.sageLight }]}>
+              <Feather name="mail" size={18} color={colors.sage} />
+            </View>
+            <View style={styles.sectionHeaderText}>
+              <Text style={[styles.sectionTitleRow, { color: colors.warmBrown, fontFamily: "Lato_700Bold" }]}>
+                Contact Support
+              </Text>
+              <Text style={[styles.sectionSubtitle, { color: colors.muted, fontFamily: "Lato_400Regular" }]}>
+                {SUPPORT_EMAIL}
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.muted} />
+          </View>
+        </Pressable>
 
         {/* About */}
         <View style={[styles.section, { backgroundColor: colors.parchment, borderColor: colors.border }]}>
