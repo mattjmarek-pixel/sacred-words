@@ -57,7 +57,7 @@ function subscribeToStartupError(listener) {
 
 function StartupErrorScreen({ error }) {
   const React = require("react");
-  const { ScrollView, StyleSheet, Text, View } = require("react-native");
+  const { ScrollView, Text, View } = require("react-native");
   const details = [
     `Message:\n${error.message}`,
     `Stack:\n${error.stack || "(no stack available)"}`,
@@ -137,14 +137,13 @@ class StartupErrorBoundary extends require("react").Component {
 }
 
 function installRootErrorScreen() {
-  const expo = require("expo");
-  const registerRootComponent = expo.registerRootComponent;
-  if (typeof registerRootComponent !== "function") {
-    throw new Error("Expo registerRootComponent is unavailable.");
+  const { AppRegistry } = require("react-native");
+  if (typeof AppRegistry?.setWrapperComponentProvider !== "function") {
+    throw new Error("React Native root wrapper registration is unavailable.");
   }
 
-  expo.registerRootComponent = (RootComponent) => {
-    function GuardedRoot(props) {
+  AppRegistry.setWrapperComponentProvider(() => {
+    function StartupErrorWrapper({ children }) {
       const React = require("react");
       const capturedError = React.useSyncExternalStore(
         subscribeToStartupError,
@@ -159,12 +158,12 @@ function installRootErrorScreen() {
       return React.createElement(
         StartupErrorBoundary,
         null,
-        React.createElement(RootComponent, props),
+        children,
       );
     }
 
-    return registerRootComponent(GuardedRoot);
-  };
+    return StartupErrorWrapper;
+  });
 }
 
 try {
