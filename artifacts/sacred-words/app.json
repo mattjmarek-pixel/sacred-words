@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.sacredwords.app",
-      "buildNumber": "1"
+      "buildNumber": "2"
     },
     "android": {
       "adaptiveIcon": {
@@ -43,7 +43,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#D4883A",
+          "color": "#C9A84C",
           "defaultChannel": "daily-reminders",
           "sounds": []
         }
@@ -53,15 +53,6 @@
         {
           "photosPermission": "Allow Sacred Words to save prayer images to your photo library.",
           "savePhotosPermission": "Allow Sacred Words to save prayer images to your photo library."
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/icon.png",
-          "color": "#C9A84C",
-          "defaultChannel": "default",
-          "sounds": []
         }
       ]
     ],
