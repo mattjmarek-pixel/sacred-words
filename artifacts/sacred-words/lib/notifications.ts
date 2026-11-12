@@ -26,15 +26,19 @@ export const NOTIFICATION_TIMES: Record<
   evening: { label: "Evening (8:00 PM)", hour: 20, minute: 0, greeting: "This evening" },
 };
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} catch (error) {
+  console.warn("[Sacred Words] Could not configure notifications.", error);
+}
 
 /** Fisher-Yates shuffle — returns a new shuffled array. */
 function shuffle<T>(arr: T[]): T[] {

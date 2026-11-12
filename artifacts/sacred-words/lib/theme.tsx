@@ -33,6 +33,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       if (stored === "light" || stored === "dark" || stored === "system") {
         setPreferenceState(stored);
       }
+    }).catch((error) => {
+      console.warn("[Sacred Words] Could not load the saved theme preference.", error);
     });
   }, []);
 

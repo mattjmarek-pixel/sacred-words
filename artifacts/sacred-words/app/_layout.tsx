@@ -43,8 +43,26 @@ import {
   type PrayerTeaserItem,
 } from "@/lib/notifications";
 
-if (Platform.OS !== "web" && process.env.EXPO_PUBLIC_DOMAIN) {
-  setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
+try {
+  const apiDomain = process.env.EXPO_PUBLIC_DOMAIN?.trim();
+  if (Platform.OS !== "web" && apiDomain) {
+    const normalizedDomain = apiDomain
+      .replace(/^https?:\/\//i, "")
+      .split(/[/?#]/, 1)[0];
+    if (!normalizedDomain || /\s/.test(normalizedDomain)) {
+      throw new Error("EXPO_PUBLIC_DOMAIN is not a valid host.");
+    }
+    if (/^http:\/\//i.test(apiDomain) && process.env.NODE_ENV === "production") {
+      throw new Error("The production API URL must use HTTPS.");
+    }
+    setBaseUrl(`https://${normalizedDomain}`);
+  } else if (Platform.OS !== "web") {
+    console.error(
+      "[Sacred Words] EXPO_PUBLIC_DOMAIN is missing; API requests may not work.",
+    );
+  }
+} catch (error) {
+  console.error("[Sacred Words] Could not configure the API base URL.", error);
 }
 
 try {
@@ -53,7 +71,13 @@ try {
   // RevenueCat not configured — subscription features will be unavailable
 }
 
-SplashScreen.preventAutoHideAsync();
+try {
+  SplashScreen.preventAutoHideAsync().catch((error) => {
+    console.warn("[Sacred Words] Could not keep the splash screen visible.", error);
+  });
+} catch (error) {
+  console.warn("[Sacred Words] Could not keep the splash screen visible.", error);
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -216,6 +240,8 @@ function RootLayoutNav() {
         | { prayerId?: number }
         | undefined;
       navigateToPrayer(router, data);
+    }).catch((error) => {
+      console.warn("[Sacred Words] Could not read the launch notification.", error);
     });
 
     // ── Foreground / background tap listener ──
@@ -312,7 +338,9 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
+      SplashScreen.hideAsync().catch((error) => {
+        console.warn("[Sacred Words] Could not hide the splash screen.", error);
+      });
     }
   }, [fontsLoaded, fontError]);
 

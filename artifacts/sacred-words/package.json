@@ -2,7 +2,7 @@
   "name": "@workspace/sacred-words",
   "version": "0.0.0",
   "private": true,
-  "main": "expo-router/entry",
+  "main": "./entry.js",
   "expo": {
     "install": {
       "exclude": [
